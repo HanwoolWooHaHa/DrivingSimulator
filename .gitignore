@@ -45,3 +45,8 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+DrivingSimulator.opensdf
+DrivingSimulator.sdf
+*.vcxproj
+DrivingSimulator.vcxproj.filters
+*.user

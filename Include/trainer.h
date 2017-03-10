@@ -33,7 +33,7 @@ private:
 	CTrainer();
 
 	void setParameter(svm_parameter* param);
-	void makeFeatureVector(void);
+	void makeFeatureVectorForTraining(void);
 	void makeFeatureVectorForTest(int nCurrentTrial, int nTick);
     void saveModel(void);
 	int registerVectorToList(int nIndex, int nT);
