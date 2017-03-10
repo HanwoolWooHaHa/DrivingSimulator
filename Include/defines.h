@@ -231,7 +231,7 @@ enum eLANE_CHANGING_PROCESS{ KEEPING = 0, CHANGING, ARRIVAL, ADJUSTMENT };
 #define DS_T_MAX 20000
 #define DS_NUM_COLUMN 44
 
-#define DS_OWN_X 1 // Training:1, Test:4
+#define DS_OWN_X 4 // Training:1, Test:4
 #define DS_OWN_Y 5
 #define DS_OWN_V 6
 #define DS_PRECED_X 7
@@ -244,7 +244,7 @@ enum eLANE_CHANGING_PROCESS{ KEEPING = 0, CHANGING, ARRIVAL, ADJUSTMENT };
 #define DS_FEATURE_VEL 5
 #define DS_FEATURE_DST 4
 #define DS_FEATURE_PE 8
-#define DS_CLASS 10 // Training:10, Test 3
+#define DS_CLASS 3 // Training:10, Test 3
 
 #define DS_FEATURE_VEL_MEAN -0.9981
 #define DS_FEATURE_DST_MEAN 45.59765

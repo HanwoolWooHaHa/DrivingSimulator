@@ -153,7 +153,7 @@ void CTrainer::Test(int nTick)
 	}
 
     int nClassificationResult = (int)dResult;//judgeClassificationResult(nTick, dResult, pdProbability);
-    int nGroundTruth = 3;
+    int nGroundTruth = 1;
 
 	static double dSuccess = 0;
     static double dFail = 0;
