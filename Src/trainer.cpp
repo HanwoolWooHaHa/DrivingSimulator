@@ -7,18 +7,10 @@
 
 CTrainer::CTrainer()
 {
+	m_nParamCost = 8;
+
 	m_pModel = NULL;
-
-    m_nParamCost = 8;
-
-    //for(int i=0; i<NUM_STATE; i++)
-    //{
-    //    for(int j=0; j<NUM_STATE; j++)
-    //    {
-    //        m_nClassificationResultCounter[i][j] = 0;
-    //    }
-    //}
-    memset(m_nClassificationResultCounter, 0, sizeof(int) * NUM_STATE * NUM_STATE);
+	memset(m_nClassificationResultCounter, 0, sizeof(int) * NUM_STATE * NUM_STATE);
     memset(m_dArrayPotential, 0, sizeof(double) * DS_T_MAX);
 }
 
@@ -31,6 +23,7 @@ CTrainer::~CTrainer()
 void CTrainer::Initialize(void)
 {
     memset(m_dArrayPotential, 0, sizeof(double) * DS_T_MAX);
+	initializeResultBuffer();
 }
 
 void CTrainer::Train()
@@ -41,7 +34,7 @@ void CTrainer::Train()
 
 
 	//! 2. Make feature vector from data packet
-	makeFeatureVector();
+	makeFeatureVectorForTraining();
 
 	//! 3. generate the problem for using Support Vector Machine
 	svm_problem problem;
@@ -199,25 +192,16 @@ void CTrainer::PrintClassificationCounter(void)
     qDebug() << "trainer.cpp @ [0][0]=" << m_nClassificationResultCounter[0][0]
              << ",  [0][1]" << m_nClassificationResultCounter[0][1]
              << ",  [0][2]" << m_nClassificationResultCounter[0][2]
-             << ",  [0][3]" << m_nClassificationResultCounter[0][3]
              << endl << endl;
 
     qDebug() << "trainer.cpp @ [1][0]=" << m_nClassificationResultCounter[1][0]
              << ",  [1][1]" << m_nClassificationResultCounter[1][1]
              << ",  [1][2]" << m_nClassificationResultCounter[1][2]
-             << ",  [1][3]" << m_nClassificationResultCounter[1][3]
              << endl << endl;
 
     qDebug() << "trainer.cpp @ [2][0]=" << m_nClassificationResultCounter[2][0]
              << ",  [2][1]" << m_nClassificationResultCounter[2][1]
              << ",  [2][2]" << m_nClassificationResultCounter[2][2]
-             << ",  [2][3]" << m_nClassificationResultCounter[2][3]
-             << endl << endl;
-
-    qDebug() << "trainer.cpp @ [3][0]=" << m_nClassificationResultCounter[3][0]
-             << ",  [3][1]" << m_nClassificationResultCounter[3][1]
-             << ",  [3][2]" << m_nClassificationResultCounter[3][2]
-             << ",  [3][3]" << m_nClassificationResultCounter[3][3]
              << endl << endl;
 }
 
@@ -226,11 +210,6 @@ void CTrainer::PrintClassificationCounter(void)
 ///////////////////////////////////////////////////////////////////////////
 int CTrainer::judgeClassificationResult(int nTick, double dResult, double* pdProbability)
 {
-	if (nTick == 0)
-	{
-		initializeResultBuffer();
-	}
-
 	int nClassificationResult = (int)dResult;
 	nClassificationResult--;
 
@@ -284,7 +263,7 @@ void CTrainer::setParameter(svm_parameter* param)
 	param->weight = NULL; /* for C_SVC */
 }
 
-void CTrainer::makeFeatureVector(void)
+void CTrainer::makeFeatureVectorForTraining(void)
 {
 	int nNumTrial = CDatabase::GetInstance()->GetNumTrial();
 
@@ -582,7 +561,7 @@ void CTrainer::makeFeatureVectorForTest(int nCurrentTrial, int nTick)
 		}
 	}
 
-	// 現時刻Tにおけるラベルを特徴ベクトルのラベルとする
+	// Adding a label at the current time
     p.label = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_CLASS);
 
 	m_pt_list.push_back(p);
@@ -769,7 +748,7 @@ int CTrainer::registerVectorToList(int nTrial, int nT)
 		}
 	}
 
-	// 現時刻Tにおけるラベルを特徴ベクトルのラベルとする
+	// Adding a label at the current time
     p.label = CDatabase::GetInstance()->GetData(DS, nTrial, nT, DS_CLASS);
 
 	m_pt_list.push_back(p);
