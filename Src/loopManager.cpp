@@ -14,6 +14,8 @@
 #include "../Include/predictor.h"
 #include "../Include/evaluation.h"
 #include "../Include/estimator.h"
+#include "../Include/extractor.h"
+#include "../Include/graph.h"
 
 #include <QThread>
 #include <QLabel>
@@ -24,8 +26,14 @@ CLoopManager::CLoopManager( void ) : DELTA_T(100)
 {
     pWindow = new CWindow;
     m_pPredictor = CPredictor::GetInstance();
+#ifndef LANE_CHANGE_DETECTION
     m_pEstimator = CEstimator::GetInstance(CEstimator::TRAJECTORY);
+#else
+    m_pEstimator = CEstimator::GetInstance(CEstimator::SVM);
+#endif
+    m_pExtractor = CExtractor::GetInstance();
 	
+    m_pExtractor->Initialize();
 	pWindow->Initialize();
 
 	ResetTime();
@@ -52,6 +60,9 @@ CLoopManager::~CLoopManager()
 
     if (m_pEstimator != NULL)
         delete m_pEstimator;
+
+    if (m_pExtractor != NULL)
+        delete m_pExtractor;
 }
 
 void CLoopManager::ShowWindow( void )
@@ -90,6 +101,11 @@ void CLoopManager::DoWork()
 
 void CLoopManager::TimeoutHandler()
 {}
+
+void CLoopManager::DrawTrajectory( int nNoTrajectory, bool bFlag )
+{
+    pWindow->DrawTrajectory( nNoTrajectory, bFlag );
+}
 
 /*********************************************************************/
 /* Private slot functions */
@@ -216,6 +232,7 @@ void CLoopManager::conductAllData(void)
             }
 
             CTrainer::GetInstance()->Initialize(1);
+            m_pExtractor->Initialize();
         }
 
         nDataLength = CDatabase::GetInstance()->GetDataInfo(nCurrentTrial, DATA_INFO_PACKET_DATA_LENGTH);
@@ -238,18 +255,27 @@ void CLoopManager::conductAllData(void)
     }
 #endif
 
+
 #ifndef LANE_CHANGE_DETECTION
     //! predict the trajectory of the target vehicle
     m_pPredictor->Predict(m_nTick);
+#endif
+    //! Extract the feature vector for lane-change detection
+    m_pExtractor->Extract(m_nTick);
 
+    //! Estimate the driving intention
     m_pEstimator->Estimate(m_nTick, TARGET);
 
     int nIntention = CDatabase::GetInstance()->GetDrivingIntention();
+    //qDebug() << "loopManager.cpp @ t = " << m_nTick << " : intention = " << nIntention << ", Dst = " << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_DISTANCE) << ", Vel = " << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_LAT_VELOCITY) << ", Pot = "  << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_POTENTIAL);
+
     if (nIntention != DEFAULT)
         m_pPredictor->Predict(m_nTick, nIntention);
+//    if (nIntention == ADJUSTMENT)
+//        m_pExtractor->ChangeSide(-1);
 
     CEvaluation::GetInstance()->CalcTrajectoryPredictionError(m_nTick);
-#endif
+
 
 
     //! Update a window screen
@@ -264,6 +290,9 @@ void CLoopManager::conductAllData(void)
             //int nFinal = CTrainer::GetInstance()->GetFinalJudge();
             //qDebug() << "Trial=" << nCurrentTrial << ": " << nFinal;
         }
+
+        int nFileNo = nDriverNo * 100 + nStateNo * 10 + nCurrentTrial;
+        pWindow->SaveImage(nFileNo);
 
         //ResetTime();
         m_nTick = 0;
@@ -281,6 +310,7 @@ void CLoopManager::conductAllData(void)
         CLeastSquare::GetInstance()->Initialize();
         CTrainer::GetInstance()->Initialize(0);
         CEvaluation::GetInstance()->InitializeAvgError();
+        m_pExtractor->Initialize();
 
         if (nCurrentTrial >= nNumTrial)
         {
@@ -371,6 +401,9 @@ CWindow::CWindow()
     setWindowTitle(tr("Simulation viewer"));
 
     m_pBirdView = new CBirdView();
+    m_pGraph = new CGraph();
+
+    m_pGraph->show();
 
     //QLabel *birdViewLabel = new QLabel(tr("TOP VIEW"));
     //birdViewLabel->setAlignment(Qt::AlignHCenter);
@@ -391,4 +424,15 @@ void CWindow::Initialize( void )
 void CWindow::Update( int tick )
 {
     m_pBirdView->Update( tick );
+    m_pGraph->Update( tick );
+}
+
+void CWindow::SaveImage(int nTrialNo)
+{
+    m_pGraph->SaveImage(nTrialNo);
+}
+
+void CWindow::DrawTrajectory(int nNoTrajectory, bool bFlag)
+{
+    m_pBirdView->DrawTrajectory( nNoTrajectory, bFlag );
 }

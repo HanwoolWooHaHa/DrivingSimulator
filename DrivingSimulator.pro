@@ -28,7 +28,13 @@ SOURCES += main.cpp\
     Src/predictor.cpp \
     Src/evaluation.cpp \
     Src/estimator.cpp \
-    Src/Navigation/sinusoidal.cpp
+    Src/Navigation/sinusoidal.cpp \
+    Src/mySVM.cpp \
+    Src/calcIntgrt.cpp \
+    Src/calcNormalCum.cpp \
+    Src/extractor.cpp \
+    Src/graph.cpp \
+    Src/helper.cpp
 
 HEADERS  += mainwindow.h \
     Include/birdView.h \
@@ -49,7 +55,13 @@ HEADERS  += mainwindow.h \
     Include/evaluation.h \
     Include/estimator.h \
     Include/method.h \
-    Include/Navigation/sinusoidal.h
+    Include/Navigation/sinusoidal.h \
+    Include/mySVM.h \
+    Include/calcIntgrt.h \
+    Include/calcNormalCum.h \
+    Include/extractor.h \
+    Include/graph.h \
+    Include/helper.h
 
 FORMS    += mainwindow.ui
 LIBS += -lGLU

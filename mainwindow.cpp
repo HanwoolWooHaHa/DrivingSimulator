@@ -153,3 +153,26 @@ void MainWindow::SaveDataPerTrial()
     else
         qDebug() << "Saving file was completed successfully";
 }
+
+void MainWindow::ChkBoxGroundClicked()
+{
+    bool bFlag = ui->chb_groundtruth->isChecked();
+    m_pLoopManager->DrawTrajectory( GROUND_TRUTH, bFlag );
+}
+
+void MainWindow::ChkBoxTargetClicked()
+{
+    bool bFlag = ui->chb_target->isChecked();
+    m_pLoopManager->DrawTrajectory( TARGET_TRAJECTORY, bFlag );
+}
+
+void MainWindow::ChkBoxPrecedingClicked()
+{
+    bool bFlag = ui->chb_preceding->isChecked();
+    m_pLoopManager->DrawTrajectory( PRECEDING_TRAJECTORY, bFlag );
+}
+void MainWindow::ChkBoxLeadClicked()
+{
+    bool bFlag = ui->chb_lead->isChecked();
+    m_pLoopManager->DrawTrajectory( LEAD_TRAJECTORY, bFlag );
+}

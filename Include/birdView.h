@@ -14,6 +14,7 @@ public:
 
 	void Initialize( void );
 	void Update( int tick );
+    void DrawTrajectory( int nNoTrajectory, bool bFlag );
 
 private:
 	void drawVehiclesInDS(void);
@@ -23,6 +24,8 @@ private:
     void drawHighway( void );
     void drawGroundTruth( void );
     void drawPredictedTrajectory(void);
+    void drawPrecedingTrajectory(void);
+    void drawLeadTrajectory(void);
     void drawText( double x, double y, double z );
 
     void renderVehicle(double dPosX, double dPosY, double dAttitude, double dLength, double dWidth, const QColor& color);
@@ -34,6 +37,11 @@ private:
 	int m_nTick;
 	float m_fZoom;
 	QPoint m_lastPt;
+
+    bool m_bDrawFlagGround;
+    bool m_bDrawFlagTarget;
+    bool m_bDrawFlagPreceding;
+    bool m_bDrawFlagLead;
 
 protected:
     void initializeGL();

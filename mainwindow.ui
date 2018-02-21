@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>1240</width>
-    <height>633</height>
+    <height>680</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -148,6 +151,70 @@
      <string>Reset</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="chb_groundtruth">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>500</y>
+      <width>121</width>
+      <height>40</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Ground truth</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="chb_target">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>530</y>
+      <width>171</width>
+      <height>40</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Target trajectory</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="chb_preceding">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>560</y>
+      <width>171</width>
+      <height>40</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Preceding trajectory</string>
+    </property>
+    <property name="checked">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="chb_lead">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>590</y>
+      <width>171</width>
+      <height>40</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Lead trajectory</string>
+    </property>
+    <property name="checked">
+     <bool>false</bool>
+    </property>
+   </widget>
    <zorder>widget</zorder>
    <zorder>label2</zorder>
    <zorder>btnStart</zorder>
@@ -156,6 +223,10 @@
    <zorder>btnTraining</zorder>
    <zorder>btnTesting</zorder>
    <zorder>btnReset</zorder>
+   <zorder>chb_groundtruth</zorder>
+   <zorder>chb_target</zorder>
+   <zorder>chb_preceding</zorder>
+   <zorder>chb_lead</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -338,6 +409,70 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>chb_groundtruth</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>ChkBoxGroundClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>360</x>
+     <y>550</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>619</x>
+     <y>339</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chb_target</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>ChkBoxTargetClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>588</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>619</x>
+     <y>339</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chb_preceding</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>ChkBoxPrecedingClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>618</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>619</x>
+     <y>339</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chb_lead</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>ChkBoxLeadClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>648</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>619</x>
+     <y>339</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>OpenFile()</slot>
@@ -348,5 +483,9 @@
   <slot>SaveDataPerTrial()</slot>
   <slot>OpenAllFile()</slot>
   <slot>OpenThreeFiles()</slot>
+  <slot>ChkBoxGroundClicked()</slot>
+  <slot>ChkBoxTargetClicked()</slot>
+  <slot>ChkBoxPrecedingClicked()</slot>
+  <slot>ChkBoxLeadClicked()</slot>
  </slots>
 </ui>

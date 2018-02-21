@@ -116,8 +116,11 @@ public:
 	void SetPredictedTrajectory(int nIndex, double dPosX, double dPosY);
 	void GetPredictedTrajectory(int nIndex, double* pdPosX, double* pdPosY);
 
-	void SetRePredictedTrajectory(int nIndex, double dPosX, double dPosY);
-    void GetRePredictedTrajectory(int nIndex, double* pdPosX, double* pdPosY);
+    void SetPrecedingTrajectory(int nIndex, double dPosX, double dPosY);
+    void GetPrecedingTrajectory(int nIndex, double* pdPosX, double* pdPosY);
+
+    void SetLeadTrajectory(int nIndex, double dPosX, double dPosY);
+    void GetLeadTrajectory(int nIndex, double* pdPosX, double* pdPosY);
 
 	int GetNumTrial(void);
 	int GetCurrentTrial(void) { return m_nCurrentTrial; }
@@ -132,6 +135,9 @@ public:
 
     void SetDsParameterData(int nTrial, int nTick, int nColumn, double dValue);
     double GetDsParameterData(int nTrial, int nTick, int nColumn);
+
+    void SetIntentionProbability(int nClass, double dValue);
+    double GetIntentionProbability(int nClass);
 
 private:
     CDatabase();
@@ -158,4 +164,9 @@ private:
 	int m_nCurrentTrial;
 
     double m_dPredictedTrajectory[100][2]; // [index][X,Y]
+    double m_dPrecedingTrajectory[100][2]; // [index][X,Y]
+    double m_dLeadTrajectory[100][2]; // [index][X,Y]
+    double m_dIntentionProbability[NUM_CLASS];
+    int m_nEstimatedResultData[DS_T_MAX];
+    double m_dFeatureData[DS_NUM_TRIAL][DS_T_MAX][FEATURE_VECTOR_DIMENSION];
 };

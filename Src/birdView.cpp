@@ -13,6 +13,11 @@ CBirdView::CBirdView(QWidget *parent) : QGLWidget(parent)
 
     this->setFixedSize( 1200, 450 );
 	m_nTick = 0;
+
+    m_bDrawFlagGround = true;
+    m_bDrawFlagTarget = true;
+    m_bDrawFlagPreceding = false;
+    m_bDrawFlagLead = false;
 }
 /*********************************************************************/
 /* Public functions */
@@ -28,6 +33,18 @@ void CBirdView::Initialize( void )
 	m_lastPt.setX( 0.0);
     m_lastPt.setY( 0.0);
 }
+
+void CBirdView::DrawTrajectory( int nNoTrajectory, bool bFlag )
+{
+    switch(nNoTrajectory)
+    {
+    case GROUND_TRUTH: m_bDrawFlagGround = bFlag; break;
+    case TARGET_TRAJECTORY: m_bDrawFlagTarget = bFlag; break;
+    case PRECEDING_TRAJECTORY: m_bDrawFlagPreceding = bFlag; break;
+    case LEAD_TRAJECTORY: m_bDrawFlagLead = bFlag; break;
+    }
+}
+
 /*********************************************************************/
 /* Private member functions */
 void CBirdView::initializeGL()
@@ -125,8 +142,17 @@ void CBirdView::paintGL()
 	drawVehiclesInDS();
 
 #if defined(TRAJECTORY_PREDICTION)
-    drawPredictedTrajectory();
-    drawGroundTruth();
+    if( m_bDrawFlagTarget )
+        drawPredictedTrajectory();
+
+    if( m_bDrawFlagGround )
+        drawGroundTruth();
+
+    if( m_bDrawFlagPreceding )
+        drawPrecedingTrajectory();
+
+    if( m_bDrawFlagLead )
+        drawLeadTrajectory();
 #endif
 	
     glFlush();
@@ -410,6 +436,138 @@ void CBirdView::drawPredictedTrajectory(void)
             CDatabase::GetInstance()->GetPredictedTrajectory(i-nIndex, &dPosX1, &dPosY1);
 
         CDatabase::GetInstance()->GetPredictedTrajectory(i, &dPosX2, &dPosY2);
+
+        GLdouble line[2][3] = { { dPosX1, dPosY1, 0.01 }, { dPosX2, dPosY2, 0.01 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+    }
+
+    glEnd();
+}
+
+void CBirdView::drawPrecedingTrajectory(void)
+{
+    double dLength = 4.54;
+    double dWidth = 1.84;
+
+    dLength *= 0.5;
+    dWidth *= 0.5;
+
+    glLoadIdentity();
+    qglColor(Qt::blue);
+
+    glPointSize(5);
+    glBegin(GL_LINES);
+
+    int nIndexPredictedTrajectory = (int)(TRAJECTORY_PREDICTION_TIME / DS_TRJ_PRD_DELTA); // prediction time X 10 Hz;
+    int nIndex = (int)(DS_TRJ_DRW_DELTA / DS_TRJ_PRD_DELTA);
+
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX = 0.0;
+        double dPosY = 0.0;
+
+        CDatabase::GetInstance()->GetPrecedingTrajectory(i, &dPosX, &dPosY);
+
+        GLdouble line[4][3] = { { dPosX - dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY + dWidth, 0.01 }, { dPosX - dLength, dPosY + dWidth, 0.01 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+
+        glVertex3dv(line[1]);
+        glVertex3dv(line[2]);
+
+        glVertex3dv(line[2]);
+        glVertex3dv(line[3]);
+
+        glVertex3dv(line[3]);
+        glVertex3dv(line[0]);
+    }
+
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX1 = 0.0;
+        double dPosY1 = 0.0;
+        double dPosX2 = 0.0;
+        double dPosY2 = 0.0;
+
+        if(i==0)
+        {
+            int nCurrentTrial = m_pDatabase->GetCurrentTrial();
+            dPosX1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_PRECED_X);
+            dPosY1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_PRECED_Y);
+        }
+        else
+            CDatabase::GetInstance()->GetPrecedingTrajectory(i-nIndex, &dPosX1, &dPosY1);
+
+        CDatabase::GetInstance()->GetPrecedingTrajectory(i, &dPosX2, &dPosY2);
+
+        GLdouble line[2][3] = { { dPosX1, dPosY1, 0.01 }, { dPosX2, dPosY2, 0.01 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+    }
+
+    glEnd();
+}
+
+void CBirdView::drawLeadTrajectory(void)
+{
+    double dLength = 4.54;
+    double dWidth = 1.84;
+
+    dLength *= 0.5;
+    dWidth *= 0.5;
+
+    glLoadIdentity();
+    qglColor(Qt::yellow);
+
+    glPointSize(5);
+    glBegin(GL_LINES);
+
+    int nIndexPredictedTrajectory = (int)(TRAJECTORY_PREDICTION_TIME / DS_TRJ_PRD_DELTA); // prediction time X 10 Hz;
+    int nIndex = (int)(DS_TRJ_DRW_DELTA / DS_TRJ_PRD_DELTA);
+
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX = 0.0;
+        double dPosY = 0.0;
+
+        CDatabase::GetInstance()->GetLeadTrajectory(i, &dPosX, &dPosY);
+
+        GLdouble line[4][3] = { { dPosX - dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY + dWidth, 0.01 }, { dPosX - dLength, dPosY + dWidth, 0.01 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+
+        glVertex3dv(line[1]);
+        glVertex3dv(line[2]);
+
+        glVertex3dv(line[2]);
+        glVertex3dv(line[3]);
+
+        glVertex3dv(line[3]);
+        glVertex3dv(line[0]);
+    }
+
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX1 = 0.0;
+        double dPosY1 = 0.0;
+        double dPosX2 = 0.0;
+        double dPosY2 = 0.0;
+
+        if(i==0)
+        {
+            int nCurrentTrial = m_pDatabase->GetCurrentTrial();
+            dPosX1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_LEAD_X);
+            dPosY1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_LEAD_Y);
+        }
+        else
+            CDatabase::GetInstance()->GetLeadTrajectory(i-nIndex, &dPosX1, &dPosY1);
+
+        CDatabase::GetInstance()->GetLeadTrajectory(i, &dPosX2, &dPosY2);
 
         GLdouble line[2][3] = { { dPosX1, dPosY1, 0.01 }, { dPosX2, dPosY2, 0.01 } };
 

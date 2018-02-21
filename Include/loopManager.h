@@ -7,6 +7,7 @@ class CBirdView;
 class CEstimator;
 class CExtractor;
 class CPredictor;
+class CGraph;
 
 /**
 * @class	CWindow
@@ -25,10 +26,13 @@ public:
 
     void Initialize( void );
     void Update( int tick );
+    void SaveImage( int nTrialNo );
+    void DrawTrajectory( int nNoTrajectory, bool bFlag );
 
 private:
     CDriverView* m_pDriverView;
 	CBirdView* m_pBirdView;
+    CGraph* m_pGraph;
 };
 
 /**
@@ -59,6 +63,8 @@ public:
     void SetDataMode(int nDataMode) { m_nDataMode = nDataMode; }
 
     void Initialize( void );
+
+    void DrawTrajectory( int nNoTrajectory, bool bFlag );
 
 	CWindow* pWindow;
 

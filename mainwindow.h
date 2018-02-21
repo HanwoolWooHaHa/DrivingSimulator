@@ -34,6 +34,10 @@ private slots:
     void TrainingButtonEntered();
     void TestingButtonEntered();
     void SaveDataPerTrial();
+    void ChkBoxGroundClicked();
+    void ChkBoxTargetClicked();
+    void ChkBoxPrecedingClicked();
+    void ChkBoxLeadClicked();
 };
 
 #endif // MAINWINDOW_H

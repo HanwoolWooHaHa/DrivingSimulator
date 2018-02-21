@@ -58,6 +58,11 @@ void CDatabase::Initialize( void )
     m_bShowOthers = true;
     m_nDrivingIntention = 0;
 	m_bCollisionFlag = false;
+
+    memset(m_dPredictedTrajectory, 0, sizeof(double) * 100 *2);
+    memset(m_dIntentionProbability, 0, sizeof(double) * NUM_CLASS);
+    memset(m_nEstimatedResultData, 0, sizeof(int) * DS_T_MAX);
+    memset(m_dFeatureData, 0, sizeof(double) * DS_NUM_TRIAL * DS_T_MAX * FEATURE_VECTOR_DIMENSION);
 }
 
 void CDatabase::SetCollisionFlag(bool bFlag)
@@ -111,6 +116,42 @@ void CDatabase::GetPredictedTrajectory(int nIndex, double* pdPosX, double* pdPos
 {
     *pdPosX = m_dPredictedTrajectory[nIndex][0];
     *pdPosY = m_dPredictedTrajectory[nIndex][1];
+}
+
+void CDatabase::SetPrecedingTrajectory(int nIndex, double dPosX, double dPosY)
+{
+    if(nIndex >= 100)
+    {
+        qDebug() << "Database.cpp @ Index of trajectory is over the limit";
+        return;
+    }
+
+    m_dPrecedingTrajectory[nIndex][0] = dPosX;
+    m_dPrecedingTrajectory[nIndex][1] = dPosY;
+}
+
+void CDatabase::GetPrecedingTrajectory(int nIndex, double* pdPosX, double* pdPosY)
+{
+    *pdPosX = m_dPrecedingTrajectory[nIndex][0];
+    *pdPosY = m_dPrecedingTrajectory[nIndex][1];
+}
+
+void CDatabase::SetLeadTrajectory(int nIndex, double dPosX, double dPosY)
+{
+    if(nIndex >= 100)
+    {
+        qDebug() << "Database.cpp @ Index of trajectory is over the limit";
+        return;
+    }
+
+    m_dLeadTrajectory[nIndex][0] = dPosX;
+    m_dLeadTrajectory[nIndex][1] = dPosY;
+}
+
+void CDatabase::GetLeadTrajectory(int nIndex, double* pdPosX, double* pdPosY)
+{
+    *pdPosX = m_dLeadTrajectory[nIndex][0];
+    *pdPosY = m_dLeadTrajectory[nIndex][1];
 }
 
 int CDatabase::GetDataInfo(int nVehicleIndex, int nColumn)
@@ -457,6 +498,36 @@ void CDatabase::SetDsParameterData(int nTrial, int nTick, int nColumn, double dV
 double CDatabase::GetDsParameterData(int nTrial, int nTick, int nColumn)
 {
     return m_dDsParameterData[nTrial][nTick][nColumn];
+}
+
+void CDatabase::SetIntentionProbability(int nClass, double dValue)
+{
+    m_dIntentionProbability[nClass] = dValue;
+}
+
+double CDatabase::GetIntentionProbability(int nClass)
+{
+    return m_dIntentionProbability[nClass];
+}
+
+void CDatabase::SetEstimatedResult( int nTick, int nResult )
+{
+    m_nEstimatedResultData[nTick] = nResult;
+}
+
+int CDatabase::GetEstimatedResult( int nTick )
+{
+    return m_nEstimatedResultData[nTick];
+}
+
+void CDatabase::SetFeatureData(int nVehicleIndex, int nTime, int nColumn, double dValue)
+{
+    m_dFeatureData[nVehicleIndex][nTime][nColumn] = dValue;
+}
+
+double CDatabase::GetFeatureData(int nVehicleIndex, int nTime, int nColumn)
+{
+    return m_dFeatureData[nVehicleIndex][nTime][nColumn];
 }
 
 ///////////////////////////////////////////////////////////////////////////

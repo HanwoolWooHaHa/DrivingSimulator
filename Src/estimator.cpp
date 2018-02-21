@@ -9,7 +9,7 @@
 #include "../Include/estimator.h"
 #include "../Include/database.h"
 #include "../Include/method.h"
-//#include "../Include/mySVM.h"
+#include "../Include/mySVM.h"
 //#include "../Include/myHmm.h"
 
 #include <qmath.h>
@@ -22,7 +22,7 @@ CEstimator::CEstimator(int nMethod)
 	switch (nMethod)
 	{
 	case SVM:
-        //m_pMethod = new CMySvm();
+        m_pMethod = new CMySvm();
 		break;
 
 	case HMM:
@@ -30,6 +30,7 @@ CEstimator::CEstimator(int nMethod)
 		break;
 
     case TRAJECTORY:
+        m_pMethod = NULL;
         break;
 
     default:
@@ -49,9 +50,15 @@ CEstimator::~CEstimator()
 /* Public functions */
 void CEstimator::Estimate( int nTick, int nMode )
 {
-    int nEstimationResult = test(nTick); //m_pMethod->Test( nTick, nMode );
+    int nEstimationResult = DEFAULT;
 
-    CDatabase::GetInstance()->SetDrivingIntention(nEstimationResult);
+    if(m_pMethod == NULL)
+    {
+        nEstimationResult = test(nTick);
+        CDatabase::GetInstance()->SetDrivingIntention( nEstimationResult );
+    }
+    else
+        m_pMethod->Test( nTick, nMode );
 }
 /*********************************************************************/
 /* Private member functions */

@@ -19,13 +19,7 @@ public:
 
     ~CPotential();
 
-	/**
-	* @fn Field
-	* @param double dDistance : 相対距離 m, double dVelocity : 相対速度 m/s, double dAngle : 相対角度 deg
-	* @return -1 : error, ベッセル関数の値が0である, otherwise : フォンミーゼス分布に従う確率
-	* @remark this function is to calculate the distribution probability in von Mises distribution
-	*/
-	double Field( double dDistance, double dVelocity, int nDir );
+    double Field( double dDistance, double dVelocity, int nDir );
 	double Field( double dDistance, double dVelocity, double dAngle );
 
 private:
