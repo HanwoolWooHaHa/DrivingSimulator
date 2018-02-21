@@ -15,10 +15,7 @@
 
 CEvaluation::CEvaluation()
 {
-	initialize();
-
-    m_dAvgErrorSum = m_dAvgErrorSumX = m_dAvgErrorSumY = 0.0;
-    m_nAvgCounter = 0;
+    initialize();
 }
 
 CEvaluation::~CEvaluation()
@@ -28,62 +25,78 @@ CEvaluation::~CEvaluation()
 
 void CEvaluation::CalcTrajectoryPredictionError(int nTick)
 {
-	int nGroundTruth = CDatabase::GetInstance()->GetGroundTruth();
-	int nDataLength = CDatabase::GetInstance()->GetDataLength();
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+    int nDataLength = CDatabase::GetInstance()->GetDataInfo(nCurrentTrial, DATA_INFO_PACKET_DATA_LENGTH);
 
-	// Check ground truth
-	if (nGroundTruth < 25)
-	{
-		qDebug() << "evaluation.cpp @ Ground truth is less than 25.";
-		return;
-	}
 
-	if ((nGroundTruth + 25) >= nDataLength)
-	{
-		qDebug() << "evaluation.cpp @ Ground truth is greater than data length.";
-		return;
-	}
+    if(nTick < (5.0 * 120.0)) // evaluation is not performed within 5.0 sec from the start
+        return;
+    if(nTick > (nDataLength - (int)(5.0 * 120.0)))
+        return;
 
-	int nEvaluationStartingTime = nGroundTruth - 25;
-	int nEvaluationFinishingTime = nGroundTruth + 25;
 
-	// Check current time
-	if (nTick < nEvaluationStartingTime || nTick > nEvaluationFinishingTime)
-		return;
 
 	double dErrorSum = 0.0;
     double dErrorSumX = 0.0;
     double dErrorSumY = 0.0;
 
-	for (int i = 0; i < (int)(TRAJECTORY_PREDICTION_TIME * 10); i++)
+
+
+    int nIndexPredictedTrajectory = (int)(TRAJECTORY_PREDICTION_TIME / DS_TRJ_PRD_DELTA); // prediction time X 10 Hz;
+    int nIndex = (int)(DS_TRJ_DRW_DELTA / DS_TRJ_PRD_DELTA);
+    int nNumEvaluationPoints = nIndexPredictedTrajectory / nIndex;
+    int nIndexEvaluation = 0;
+
+
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX = 0.0;
+        double dPosY = 0.0;
+
+        CDatabase::GetInstance()->GetPredictedTrajectory(i, &dPosX, &dPosY);
+
+        m_dEvaluationPoints[nIndexEvaluation][0] = dPosX;
+        m_dEvaluationPoints[nIndexEvaluation][1] = dPosY;
+
+        nIndexEvaluation++;
+    }
+
+
+
+    int nNumIndexGroundTruth = (int)(TRAJECTORY_PREDICTION_TIME / DS_DELTA_T); // prediction time X 120 Hz;
+    nIndex = (int)(DS_TRJ_DRW_DELTA / DS_DELTA_T);
+    nIndexEvaluation = 0;
+
+
+    for (int i = 0; i <= nNumIndexGroundTruth; i+=nIndex)
+    {
+        double dPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick+i, DS_OWN_X);
+        double dPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick+i, DS_OWN_Y);
+
+        m_dEvaluationPoints[nIndexEvaluation][2] = dPosX;
+        m_dEvaluationPoints[nIndexEvaluation][3] = dPosY;
+
+        nIndexEvaluation++;
+    }
+
+
+
+    for (int i = 0; i < nNumEvaluationPoints; i++)
 	{
-		double dPosX_GroundTruth = CDatabase::GetInstance()->GetData(TARGET, 0, nTick + i, DATA_PACKET_X) * FEET_TO_METER;
-		double dPosY_GroundTruth = CDatabase::GetInstance()->GetData(TARGET, 0, nTick + i, DATA_PACKET_Y) * FEET_TO_METER;
-
-		double dPosX_Predicted = 0.0;
-		double dPosY_Predicted = 0.0;
-
-		CDatabase::GetInstance()->GetPredictedTrajectory(i, &dPosX_Predicted, &dPosY_Predicted);
-
-		double dErrorX = dPosX_Predicted - dPosX_GroundTruth;
-		double dErrorY = dPosY_Predicted - dPosY_GroundTruth;
+        double dErrorX = m_dEvaluationPoints[i][0] - m_dEvaluationPoints[i][2]; // Predicted X - Ground truth X
+        double dErrorY = m_dEvaluationPoints[i][1] - m_dEvaluationPoints[i][3]; // Predicted Y - Ground truth Y
 		double dError = qSqrt(dErrorX*dErrorX + dErrorY*dErrorY);
 
-		int nDeltaTime = nTick - nEvaluationStartingTime;
-		m_dRecordData[m_nNumRecordedVehicles][nDeltaTime][i][0] = dPosX_GroundTruth;
-		m_dRecordData[m_nNumRecordedVehicles][nDeltaTime][i][1] = dPosY_GroundTruth;
-		m_dRecordData[m_nNumRecordedVehicles][nDeltaTime][i][2] = dPosX_Predicted;
-		m_dRecordData[m_nNumRecordedVehicles][nDeltaTime][i][3] = dPosY_Predicted;
-		m_dRecordData[m_nNumRecordedVehicles][nDeltaTime][i][4] = dError;
-		
-		dErrorSum += dError;
-        dErrorSumX += dErrorX;
-        dErrorSumY += dErrorY;
+        dErrorSum += dError;
+        dErrorSumX += qAbs(dErrorX);
+        dErrorSumY += qAbs(dErrorY);
 	}
 
-	double dAvgError = dErrorSum / (TRAJECTORY_PREDICTION_TIME * 10);
-    double dAvgErrorX = dErrorSumX / (TRAJECTORY_PREDICTION_TIME * 10);
-    double dAvgErrorY = dErrorSumY / (TRAJECTORY_PREDICTION_TIME * 10);
+
+
+    double dAvgError = dErrorSum / nNumEvaluationPoints;
+    double dAvgErrorX = dErrorSumX / nNumEvaluationPoints;
+    double dAvgErrorY = dErrorSumY / nNumEvaluationPoints;
 
     m_dAvgErrorSum += dAvgError;
     m_dAvgErrorSumX += dAvgErrorX;
@@ -91,13 +104,7 @@ void CEvaluation::CalcTrajectoryPredictionError(int nTick)
 
     m_nAvgCounter++;
 
-	qDebug() << "evaluation.cpp @ t = " << nTick << " : Avg.Error = " << dAvgError;
-
-	if (nTick == nEvaluationFinishingTime)
-	{
-		saveEvaluationResult();
-		m_nNumRecordedVehicles++;
-	}
+    //qDebug() << "evaluation.cpp @ t = " << nTick << " : Avg.Error X = " << dAvgErrorX << " : Avg.Error Y = " << dAvgErrorY;
 }
 
 double CEvaluation::GetAvgError(int nIndex)
@@ -124,42 +131,29 @@ double CEvaluation::GetData(int nVehicleIndex, int nTime, int nPredictionTime, i
     return m_dRecordData[nVehicleIndex][nTime][nPredictionTime][nColumn];
 }
 
+void CEvaluation::InitializeAvgError(void)
+{
+    m_dAvgErrorSum = m_dAvgErrorSumX = m_dAvgErrorSumY = 0.0;
+    m_nAvgCounter = 0;
+}
+
+void CEvaluation::PrintAvgError(void)
+{
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+
+    if(m_nAvgCounter==0)
+        return;
+
+    qDebug() << "evaluation.cpp @ Tiral = " << nCurrentTrial << " Avg.Error = " << GetAvgError(0) << " : Avg.Error X = " << GetAvgError(1) << " : Avg.Error Y = " << GetAvgError(2);
+}
+
 void CEvaluation::initialize(void)
 {
+    m_dAvgErrorSum = m_dAvgErrorSumX = m_dAvgErrorSumY = 0.0;
+    m_nAvgCounter = 0;
+
 	m_nNumRecordedVehicles = 0;
 
 	memset(m_dRecordData, 0, sizeof(double) * NUM_TRAFFIC_DATA * 60 * 50 * 5);
-}
-
-void CEvaluation::saveEvaluationResult(void)
-{
-	int nVehicleNo = CDatabase::GetInstance()->GetData(TARGET, 0, 0, DATA_PACKET_NO);
-
-    QString file = "/Users/woohanwool/Program/Log/Prediction/" + QString::number(nVehicleNo) + ".csv";
-
-	QFile* fp = new QFile(file);
-	if (!fp->open(QIODevice::WriteOnly))
-	{
-		delete fp;
-		return;
-	}
-
-	QTextStream* out = new QTextStream(fp);
-
-	for (int t = 0; t < 51; t++)
-	{
-		for (int i = 0; i < (TRAJECTORY_PREDICTION_TIME * 10); i++)
-		{
-			for (int k = 0; k < 5; k++)
-			{
-				*out << m_dRecordData[m_nNumRecordedVehicles][t][i][k] << ",";
-			}
-			*out << endl;
-		}
-	}
-
-	fp->close();
-
-	delete fp;
-	delete out;
+    memset(m_dEvaluationPoints, sizeof(double), 100 * 4);
 }

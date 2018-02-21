@@ -8,8 +8,9 @@
 
 #include "../Include/estimator.h"
 #include "../Include/database.h"
-#include "../Include/mySVM.h"
-#include "../Include/myHmm.h"
+#include "../Include/method.h"
+//#include "../Include/mySVM.h"
+//#include "../Include/myHmm.h"
 
 #include <qmath.h>
 #include <qdebug.h>
@@ -21,12 +22,15 @@ CEstimator::CEstimator(int nMethod)
 	switch (nMethod)
 	{
 	case SVM:
-        m_pMethod = new CMySvm();
+        //m_pMethod = new CMySvm();
 		break;
 
 	case HMM:
-        m_pMethod = new CMyHmm();
+        //m_pMethod = new CMyHmm();
 		break;
+
+    case TRAJECTORY:
+        break;
 
     default:
         m_pMethod = NULL;
@@ -45,11 +49,47 @@ CEstimator::~CEstimator()
 /* Public functions */
 void CEstimator::Estimate( int nTick, int nMode )
 {
-    bool bEstimationResult = m_pMethod->Test( nTick, nMode );
+    int nEstimationResult = test(nTick); //m_pMethod->Test( nTick, nMode );
 
-    CDatabase::GetInstance()->SetLaneChangingFlag( bEstimationResult );
-
-    //qDebug() << "estimator.cpp @ t=" << nTick << ",  flag = " << bEstimationResult;
+    CDatabase::GetInstance()->SetDrivingIntention(nEstimationResult);
 }
 /*********************************************************************/
 /* Private member functions */
+int CEstimator::test( int nTick )
+{
+    static int nPreIntention = DEFAULT;
+    int nIntention = DEFAULT;
+    int nIndexPredictedTrajectory = (int)(TRAJECTORY_PREDICTION_TIME / DS_TRJ_PRD_DELTA); // prediction time X 10 Hz;
+
+    if(nTick == 0)
+        nPreIntention = DEFAULT;
+
+    double dCurrentPosX = 0.0;
+    double dCurrentPosY = 0.0;
+    double dPosX = 0.0;
+    double dPosY = 0.0;
+
+    CDatabase::GetInstance()->GetPredictedTrajectory(0, &dCurrentPosX, &dCurrentPosY);
+    CDatabase::GetInstance()->GetPredictedTrajectory(nIndexPredictedTrajectory, &dPosX, &dPosY);
+
+
+    if(dCurrentPosY > DS_CENTERLINE && dPosY > DS_CENTERLINE)
+    {
+        if(nPreIntention==RETURNING || nPreIntention==ADJUSTMENT)
+            nIntention = ADJUSTMENT;
+        else
+            nIntention = KEEPING;
+    }
+    else if(dCurrentPosY > DS_CENTERLINE && dPosY <= DS_CENTERLINE)
+        nIntention = CHANGING;
+    else if(dCurrentPosY <= DS_CENTERLINE && dPosY <= DS_CENTERLINE)
+        nIntention = ARRIVAL;
+    else if(dCurrentPosY <= DS_CENTERLINE && dPosY > DS_CENTERLINE)
+        nIntention = RETURNING;
+    else
+        nIntention = DEFAULT;
+
+    nPreIntention = nIntention;
+
+    return nIntention;
+}

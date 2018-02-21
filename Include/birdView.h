@@ -18,13 +18,11 @@ public:
 private:
 	void drawVehiclesInDS(void);
 	void drawVehicle( int type, int index );
-	void drawLine( void );
-	void drawLineMarkings(void);
-    void drawHighway(double dGlobalOwnX, double dGlobalOwnY, double dAttitude);
+    void drawGround( void );
+    void drawLine( void );
     void drawHighway( void );
-    void drawTargetVehicleTrajectory( void );
-	void drawPredictedTrajectory(void);
-	void drawPredictedPosition(void);
+    void drawGroundTruth( void );
+    void drawPredictedTrajectory(void);
     void drawText( double x, double y, double z );
 
     void renderVehicle(double dPosX, double dPosY, double dAttitude, double dLength, double dWidth, const QColor& color);

@@ -2,6 +2,7 @@
 #include "../Include/database.h"
 #include "../Include/leastsquare.h"
 #include "../Library/libpf/potential.h"
+#include "../Include/bayesian.h"
 
 #include <QDebug>
 
@@ -10,8 +11,10 @@ CTrainer::CTrainer()
 	m_nParamCost = 8;
 
 	m_pModel = NULL;
-	memset(m_nClassificationResultCounter, 0, sizeof(int) * NUM_STATE * NUM_STATE);
+    memset(m_nClassificationResultCounter, 0, sizeof(int) * NUM_CLASS * NUM_CLASS);
     memset(m_dArrayPotential, 0, sizeof(double) * DS_T_MAX);
+
+    CBayesian::GetInstance()->Initialize();
 }
 
 CTrainer::~CTrainer()
@@ -20,10 +23,25 @@ CTrainer::~CTrainer()
 		svm_free_and_destroy_model(&m_pModel);
 }
 
-void CTrainer::Initialize(void)
+void CTrainer::Initialize(int nMode)
 {
-    memset(m_dArrayPotential, 0, sizeof(double) * DS_T_MAX);
-	initializeResultBuffer();
+    switch(nMode)
+    {
+    case 0:
+        memset(m_dArrayPotential, 0, sizeof(double) * DS_T_MAX);
+        initializeResultBuffer();
+        break;
+
+    case 1:
+        memset(m_nClassificationResultCounter, 0, sizeof(int) * NUM_CLASS * NUM_CLASS);
+        memset(m_dAccuracy, 0, sizeof(double) * NUM_CLASS);
+        qDebug() << "Trainer @ Result counter was initialized... GT = " + QString::number(m_nGroundTruth);
+        m_dSuccess = 0;
+        m_dFail = 0;
+        break;
+    }
+
+
 }
 
 void CTrainer::Train()
@@ -139,7 +157,7 @@ void CTrainer::Test(int nTick)
 		x[k].index = k + 1;
 	x[FEATURE_VECTOR_DIMENSION * WINDOW_SIZE].index = -1;
 
-    double* pdProbability = new double[NUM_STATE];
+    double* pdProbability = new double[NUM_CLASS];
 	double dResult = 0.0;
 
 	for (std::list <stFeatureVector>::iterator q = m_pt_list.begin(); q != m_pt_list.end(); q++)
@@ -152,30 +170,37 @@ void CTrainer::Test(int nTick)
 		q->label = (signed char)dResult;
 	}
 
-    int nClassificationResult = (int)dResult;//judgeClassificationResult(nTick, dResult, pdProbability);
-    int nGroundTruth = 1;
-
-	static double dSuccess = 0;
-    static double dFail = 0;
+#if defined(PROPOSED)
+    int nClassificationResult = judgeClassificationResult((int)dResult, pdProbability);
+#else
+    int nClassificationResult = (int)dResult;
+#endif
+    int nGroundTruth = m_nGroundTruth;
 
 
 	if (nGroundTruth == nClassificationResult)
 	{
-		dSuccess++;
+        m_dSuccess++;
 	}
 	else
 	{
-		dFail++;
+        m_dFail++;
 	}
 
-	nGroundTruth--;
-	m_dAccuracy[nGroundTruth] = dSuccess / (dSuccess + dFail);
+    nGroundTruth--;
+    m_dAccuracy[nGroundTruth] = m_dSuccess / (m_dSuccess + m_dFail);
 
 	CDatabase::GetInstance()->SetDsClassificationResult(nCurrentTiral, nTick, nClassificationResult);
-	qDebug() << "trainer.cpp @ t=" << nTick << " :  class = " << nClassificationResult << endl; // ",  " << pdProbability[0] << ", " << pdProbability[1] << ", " << pdProbability[2] << ", " << pdProbability[3] << endl;
+    //qDebug() << "trainer.cpp @ t=" << nTick << " :  class = " << nClassificationResult << endl;
 
     nClassificationResult--;
     m_nClassificationResultCounter[nGroundTruth][nClassificationResult]++;
+    m_nClassificationResultBuffer[nClassificationResult]++;
+
+    for(int i=0; i<NUM_CLASS; i++)
+    {
+        m_dPreProbability[i] = pdProbability[i];
+    }
 
 	m_pt_list.clear();
 
@@ -189,57 +214,84 @@ double CTrainer::GetAccuracy(int nIndex)
 
 void CTrainer::PrintClassificationCounter(void)
 {
-    qDebug() << "trainer.cpp @ [0][0]=" << m_nClassificationResultCounter[0][0]
-             << ",  [0][1]" << m_nClassificationResultCounter[0][1]
-             << ",  [0][2]" << m_nClassificationResultCounter[0][2]
-             << endl << endl;
+    for(int j=0; j<3; j++)
+    {
+        qDebug() << "trainer.cpp @ [" << m_nGroundTruth-1 << "][" << j << "]=" << m_nClassificationResultCounter[m_nGroundTruth-1][j] << ", ";
+    }
+    qDebug() << endl << endl;
+}
 
-    qDebug() << "trainer.cpp @ [1][0]=" << m_nClassificationResultCounter[1][0]
-             << ",  [1][1]" << m_nClassificationResultCounter[1][1]
-             << ",  [1][2]" << m_nClassificationResultCounter[1][2]
-             << endl << endl;
+int CTrainer::GetFinalJudge(void)
+{
+    int nClass = 0;
+    int nMax = 0;
 
-    qDebug() << "trainer.cpp @ [2][0]=" << m_nClassificationResultCounter[2][0]
-             << ",  [2][1]" << m_nClassificationResultCounter[2][1]
-             << ",  [2][2]" << m_nClassificationResultCounter[2][2]
-             << endl << endl;
+    for(int i=0; i<NUM_CLASS; i++)
+    {
+        int nValue = m_nClassificationResultBuffer[i];
+        if(nValue > nMax)
+        {
+            nMax = nValue;
+            nClass = i+1;
+        }
+    }
+
+    return nClass;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 /* Private member functions */
 ///////////////////////////////////////////////////////////////////////////
-int CTrainer::judgeClassificationResult(int nTick, double dResult, double* pdProbability)
+int CTrainer::judgeClassificationResult(int nResult, double* pdProb)
 {
-	int nClassificationResult = (int)dResult;
-	nClassificationResult--;
+    //int nState = CBayesian::GetInstance()->Filter(pdProb, m_dPreProbability);
+    int nNumClass = 3;
+    int nState = -1;
 
-	//! Increase count of classified state
-	m_nClassificationResultBuffer[nClassificationResult]++;
+    double dDelta1 = qAbs(pdProb[0] - pdProb[1]);
+    double dDelta2 = qAbs(pdProb[1] - pdProb[2]);
+    double dDelta3 = qAbs(pdProb[0] - pdProb[2]);
 
-	double dMax = 0;
-	int nMaxClass = -1;
 
-	for (int n = 0; n < NUM_STATE; n++)
-	{
-		int nCount = m_nClassificationResultBuffer[n];
+    if( (dDelta1 < DS_THRESHOLD_FILTER) || (dDelta2 < DS_THRESHOLD_FILTER) || (dDelta3 < DS_THRESHOLD_FILTER) )
+    {
+        int nSum = 0;
+        for(int i=0; i<nNumClass; i++)
+        {
+            nSum += m_nClassificationResultBuffer[i];
+        }
 
-		double dValue = pdProbability[n] * nCount / (nTick+1);
+        double dProb[nNumClass] = {0.0};
+        for(int i=0; i<nNumClass; i++)
+        {
+            dProb[i] = pdProb[i] * m_nClassificationResultBuffer[i] / nSum;
+        }
 
-		if (dValue > dMax)
-		{
-			dMax = dValue;
-			nMaxClass = n;
-		}
-	}
+        double dMax = 0.0;
+        for(int i=0; i<nNumClass; i++)
+        {
+            if(dProb[i] > dMax)
+            {
+                dMax = dProb[i];
+                nState = i+1;
+            }
+        }
+    }
+    else
+    {
+        nState = nResult;
+    }
 
-	nClassificationResult = nMaxClass + 1;
-
-	return nClassificationResult;
+    return nState;
 }
 
 void CTrainer::initializeResultBuffer(void)
 {
-	memset(m_nClassificationResultBuffer, 0, sizeof(int) * NUM_STATE);
+    for(int i=0; i<NUM_CLASS; i++)
+    {
+        m_dPreProbability[i] = 1 / NUM_CLASS;
+        m_nClassificationResultBuffer[i] = 1;
+    }
 }
 
 void CTrainer::setParameter(svm_parameter* param)

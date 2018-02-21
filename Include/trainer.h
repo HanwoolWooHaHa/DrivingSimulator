@@ -26,8 +26,12 @@ public:
 	void LoadModel();
 	void Test(int nTick);
 	double GetAccuracy(int nIndex);
+    int GetCounter(int nRow, int nColumn) { return m_nClassificationResultCounter[nRow][nColumn]; }
     void PrintClassificationCounter(void);
-    void Initialize(void);
+    void Initialize(int nMode);
+    int GetFinalJudge(void);
+
+    void SetGroundTruth(int nLabel) { m_nGroundTruth = nLabel; }
 
 private:
 	CTrainer();
@@ -37,14 +41,18 @@ private:
 	void makeFeatureVectorForTest(int nCurrentTrial, int nTick);
     void saveModel(void);
 	int registerVectorToList(int nIndex, int nT);
-	int judgeClassificationResult(int nTick, double dResult, double* pdProbability);
+    int judgeClassificationResult(int nResult, double* pdProb);
 	void initializeResultBuffer(void);
 
 	std::list<stFeatureVector> m_pt_list;
 	int m_nParamCost;
+    int m_nGroundTruth;
+    double m_dSuccess;
+    double m_dFail;
 	svm_model* m_pModel;
-    int m_nClassificationResultBuffer[NUM_STATE];
-    int m_nClassificationResultCounter[NUM_STATE][NUM_STATE];
-	double m_dAccuracy[4];
+    int m_nClassificationResultBuffer[NUM_CLASS];
+    int m_nClassificationResultCounter[NUM_CLASS][NUM_CLASS];
+    double m_dAccuracy[NUM_CLASS];
     double m_dArrayPotential[DS_T_MAX];
+    double m_dPreProbability[NUM_STATE];
 };

@@ -8,7 +8,7 @@
 
 #include "../Include/predictor.h"
 #include "../Include/database.h"
-#include "../Include/Navigation/normalPFM.h"
+//#include "../Include/Navigation/normalPFM.h"
 #include "../Include/Navigation/sinusoidal.h"
 
 #include <qdebug.h>
@@ -16,11 +16,13 @@
 
 CPredictor::CPredictor(void)
 {
+    m_pNaviMethod = NULL;
+
     //! Use the potential field method
-    m_pNaviMethod = new CNormalPFM();
+    //m_pNaviMethod = new CNormalPFM();
 
     //! Use the sinusoidal model
-    //m_pNaviMethod = new CSinusoidalModel();
+    m_pNaviMethod = new CSinusoidalModel();
 }
 
 CPredictor::~CPredictor(void)
@@ -32,196 +34,133 @@ CPredictor::~CPredictor(void)
 ///////////////////////////////////////////////////////////////////////////
 bool CPredictor::Predict(int nTick)
 {
-	double arrdData[20] = { 0.0 };
-	for (int i = 0; i < 20; i++)
-	{
-		arrdData[i] = CDatabase::GetInstance()->GetAdjacentVehicleData(i);
-	}
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+    int nNumTrial = CDatabase::GetInstance()->GetNumTrial();
 
-	double dTgtPosX = CDatabase::GetInstance()->GetData(TARGET, 0, nTick, DATA_PACKET_X) * FEET_TO_METER;
-	double dTgtPosY = CDatabase::GetInstance()->GetData(TARGET, 0, nTick, DATA_PACKET_Y) * FEET_TO_METER;
+    if (nCurrentTrial < 0 || nCurrentTrial > nNumTrial)
+        nCurrentTrial = 0;
+
+    double dTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_X); // direction of travel, longitudinal position
+    double dTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_Y); // lateral position
 	double dTgtVelX = 0.0;
-	double dTgtVelY = CDatabase::GetInstance()->GetData(TARGET, 0, nTick, DATA_PACKET_VEL) * FEET_TO_METER;
+    double dTgtVelY = 0.0;
+
 	if (nTick != 0)
 	{
-		double dPreTgtPosX = CDatabase::GetInstance()->GetData(TARGET, 0, nTick - 1, DATA_PACKET_X) * FEET_TO_METER;
-		dTgtVelX = (dTgtPosX - dPreTgtPosX) * 10.0;
-		//qDebug() << "predictor.cpp @ t = " << nTick << " : VelX = " << dTgtVelX << ",  VelY = " << dTgtVelY << ",  Ang = " << qRadiansToDegrees(qAtan(qAbs(dTgtVelX) / qAbs(dTgtVelY)));
+        double dPreTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_X);
+        double dPreTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_Y);
+
+        dTgtVelX = (dTgtPosX - dPreTgtPosX) * 120.0; // 120 Hz = measurement period
+        dTgtVelY = (dTgtPosY - dPreTgtPosY) * 120.0; // 120 Hz = measurement period
+
+        //qDebug() << "predictor.cpp @ t = " << nTick << " : VelX = " << dTgtVelX << ",  VelY = " << dTgtVelY;
 	}
 
-	// 1. Set the goal position referred the result of the lane change estimation
-	bool bLaneChangingFlag = CDatabase::GetInstance()->GetLaneChangingFlag();
-	double dGoalPosX = 0.0;
-	double dGoalPosY = 0.0;
-	setGoalPosition(bLaneChangingFlag, dTgtPosX, dTgtPosY, &dGoalPosX, &dGoalPosY);
+    double arrdTgtInfo[4] = { dTgtPosX, dTgtPosY, dTgtVelX, dTgtVelY };
 
-	arrdData[12] = dGoalPosX;
-	arrdData[13] = dGoalPosY;
-	arrdData[14] = dTgtPosX;
-	arrdData[15] = dTgtPosY;
-	arrdData[16] = dTgtVelX;
-	arrdData[17] = dTgtVelY;
 
-	//! Check the vehicle gap with adjacent vehicles
-	//qDebug() << "predictor.cpp @ t = " << nTick << " : P=" << arrdData[PRECEDING_VEHICLE_GAP] << ", F=" << arrdData[FOLLOWING_VEHICLE_GAP] << ", L=" << arrdData[LEAD_VEHICLE_GAP] << ", R=" << arrdData[REAR_VEHICLE_GAP];
+    double dDelta = DS_TRJ_PRD_DELTA;
+    bool bLaneChangingFlag = false;
+    int nUpdateCounter = 0;
 
-	calculateAverageVelocity(nTick, arrdData);
+    // save the current position
+    CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
+    nUpdateCounter++;
 
-	double dDelta = 0.1;
-	int nUpdateCounter = 0;
-	bool bCollision = false;
-
-	// 2. Conduct a trajectory prediction
+    // Conduct a trajectory prediction
 	for (double t = 0.0; t < TRAJECTORY_PREDICTION_TIME; t += dDelta)
 	{
-		double dTgtAccX = 0.0;
-		double dTgtAccY = 0.0;
+        double dTgtAccX = 0.0;
+        double dTgtAccY = 0.0;
 
-		// 2.1 Calculate an acceleration of the target vehicle
-		int nReturn = m_pNaviMethod->CalculateAccelerate(nTick, bLaneChangingFlag, arrdData, &dTgtAccX, &dTgtAccY);
-		if (nReturn == FAIL)
-		{
-			//qDebug() << "predictor.cpp @ Lane changing is dangerous!!!";
+        // Update positions of vehicles
+        update( arrdTgtInfo, dTgtAccX, dTgtAccY, dDelta );
 
-			bCollision = true;
-			//break;
-		}
-		
-		// 2.2 Update positions of vehicles
-		update(bLaneChangingFlag, arrdData, dTgtAccX, dTgtAccY, dDelta);
+        // Save the predicted trajectory
+        CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
 
-		// 2.3 Save the predicted trajectory
-		CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdData[14], arrdData[15]); // save the position of the target vehicle : (PosX, PosY [m])
-
-		nUpdateCounter++;
+        nUpdateCounter++;
 	}
 
-#if 1
-	nUpdateCounter = 0;
-	if (bCollision)
-	{
-		int nIndex = 0;
-		// if collision occures, conduct the trajectory prediction again setting goal position on the current lane
-		for (double t = 0.0; t < TRAJECTORY_PREDICTION_TIME; t += dDelta)
-		{
-			double dPosX = 0.0;
-			double dPosY = 0.0;
 
-			CDatabase::GetInstance()->GetPredictedTrajectory(nIndex, &dPosX, &dPosY);
-
-			CDatabase::GetInstance()->SetRePredictedTrajectory(nIndex, dPosX, dPosY); // save the position of the target vehicle : (PosX, PosY [m])
-
-			nIndex++;
-		}
-
-		for (int i = 0; i < 20; i++)
-		{
-			arrdData[i] = CDatabase::GetInstance()->GetAdjacentVehicleData(i);
-		}
-
-		setGoalPosition(false, dTgtPosX, dTgtPosY, &dGoalPosX, &dGoalPosY);
-
-		arrdData[12] = dGoalPosX;
-		arrdData[13] = dGoalPosY;
-		arrdData[14] = dTgtPosX;
-		arrdData[15] = dTgtPosY;
-		arrdData[16] = dTgtVelX;
-		arrdData[17] = dTgtVelY;
-
-		for (double t = 0.0; t < TRAJECTORY_PREDICTION_TIME; t += dDelta)
-		{
-			double dTgtAccX = 0.0;
-			double dTgtAccY = 0.0;
-
-			// 2.1 Calculate an acceleration of the target vehicle
-			m_pNaviMethod->CalculateAccelerate(nTick, false, arrdData, &dTgtAccX, &dTgtAccY);
-
-			// 2.2 Update positions of vehicles
-			update(false, arrdData, dTgtAccX, dTgtAccY, dDelta);
-
-			// 2.3 Save the predicted trajectory
-			CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdData[14], arrdData[15]); // save the position of the target vehicle : (PosX, PosY [m])
-
-			nUpdateCounter++;
-		}
-	}
-#endif
-
+    bool bCollision = false;
 	return bCollision;
 }
+
+bool CPredictor::Predict( int nTick, int nIntention )
+{
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+    int nNumTrial = CDatabase::GetInstance()->GetNumTrial();
+
+    if (nCurrentTrial < 0 || nCurrentTrial > nNumTrial)
+        nCurrentTrial = 0;
+
+    double dTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_X); // direction of travel, longitudinal position
+    double dTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_Y); // lateral position
+    double dTgtVelX = 0.0;
+    double dTgtVelY = 0.0;
+
+    if (nTick != 0)
+    {
+        double dPreTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_X);
+        double dPreTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_Y);
+
+        dTgtVelX = (dTgtPosX - dPreTgtPosX) * 120.0; // 120 Hz = measurement period
+        dTgtVelY = (dTgtPosY - dPreTgtPosY) * 120.0; // 120 Hz = measurement period
+
+        //qDebug() << "predictor.cpp @ t = " << nTick << " : VelX = " << dTgtVelX << ",  VelY = " << dTgtVelY;
+    }
+
+    double arrdTgtInfo[4] = { dTgtPosX, dTgtPosY, dTgtVelX, dTgtVelY };
+
+
+    double dDelta = DS_TRJ_PRD_DELTA;
+    int nUpdateCounter = 0;
+
+    // save the current position
+    CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
+    nUpdateCounter++;
+
+    // Conduct a trajectory prediction
+    for (double t = 0.0; t < TRAJECTORY_PREDICTION_TIME; t += dDelta)
+    {
+        double dTgtAccX = 0.0;
+        double dTgtAccY = 0.0;
+
+        m_pNaviMethod->CalculateAccelerate(nIntention, arrdTgtInfo, &dTgtAccX, &dTgtAccY);
+
+        // Update positions of vehicles
+        update( arrdTgtInfo, dTgtAccX, dTgtAccY, dDelta );
+
+
+        if(nIntention == ARRIVAL && (arrdTgtInfo[1] < DS_CENTERLINE - 0.5 * DS_LANE_WIDTH))
+            arrdTgtInfo[1] = DS_CENTERLINE - 0.5 * DS_LANE_WIDTH;
+        if(nIntention == ADJUSTMENT && (arrdTgtInfo[1] > DS_CENTERLINE + 0.5 * DS_LANE_WIDTH))
+            arrdTgtInfo[1] = DS_CENTERLINE + 0.5 * DS_LANE_WIDTH;
+
+
+        // Save the predicted trajectory
+        CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
+
+        nUpdateCounter++;
+    }
+
+    bool bCollision = false;
+    return bCollision;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 /* Private functions */
 ///////////////////////////////////////////////////////////////////////////
-void CPredictor::setGoalPosition(bool bLaneChangingFlag, double dTgtPosX, double dTgtPosY, double* pdGoalPosX, double* pdGoalPosY)
+void CPredictor::update(double* arrdData, double dTgtAccX, double dTgtAccY, double dDelta)
 {
-	int nStartLane = (int)CDatabase::GetInstance()->GetDataInfo(TARGET, DATA_INFO_PACKET_START_LANE);
-	int nEndLane = (int)CDatabase::GetInstance()->GetDataInfo(TARGET, DATA_INFO_PACKET_END_LANE);
+    double dTgtPosX = arrdData[0];
+    double dTgtPosY = arrdData[1];
+    double dTgtVelX = arrdData[2];
+    double dTgtVelY = arrdData[3];
 
-	*pdGoalPosY = dTgtPosY + 20.0;
-	
-	if (bLaneChangingFlag)
-	{
-		*pdGoalPosX = ((nEndLane - 1) * LANE_WIDTH + 0.5 * LANE_WIDTH) * FEET_TO_METER;
-	}
-	else
-	{
-		*pdGoalPosX = ((nStartLane - 1) * LANE_WIDTH + 0.5 * LANE_WIDTH) * FEET_TO_METER;
-	}
-}
-
-void CPredictor::update(bool bLaneChangingFlag, double* arrdData, double dTgtAccX, double dTgtAccY, double dDelta)
-{
-	double dTgtPosX = arrdData[14];
-	double dTgtPosY = arrdData[15];
-	double dTgtVelX = arrdData[16];
-	double dTgtVelY = arrdData[17];
-
-	
-	int nLeadVehicleNo = (int)arrdData[LEAD_VEHICLE_NO];
-	if (nLeadVehicleNo != 0)
-	{
-		double dLeadGap = arrdData[LEAD_VEHICLE_GAP];
-		double dLeadRelVelY = arrdData[LEAD_VEHICLE_REL_VEL];
-
-		dLeadGap += dLeadRelVelY * dDelta;
-
-		arrdData[LEAD_VEHICLE_GAP] = dLeadGap;
-	}
-
-	int nPrecedingVehicleNo = (int)arrdData[PRECEDING_VEHICLE_NO];
-	if (nPrecedingVehicleNo != 0)
-	{
-		double dPrecedingGap = arrdData[PRECEDING_VEHICLE_GAP];
-		double dPrecedingRelVelY = arrdData[PRECEDING_VEHICLE_REL_VEL];
-
-		dPrecedingGap += dPrecedingRelVelY * dDelta;
-
-		arrdData[PRECEDING_VEHICLE_GAP] = dPrecedingGap;
-	}
-
-	int nRearVehicleNo = (int)arrdData[REAR_VEHICLE_NO];
-	if (nRearVehicleNo != 0)
-	{
-		double dRearGap = arrdData[REAR_VEHICLE_GAP];
-		double dRearRelVelY = arrdData[REAR_VEHICLE_REL_VEL];
-
-		dRearGap += dRearRelVelY * dDelta;
-
-		arrdData[REAR_VEHICLE_GAP] = dRearGap;
-	}
-
-	int nFollowingVehicleNo = (int)arrdData[FOLLOWING_VEHICLE_NO];
-	if (nFollowingVehicleNo != 0)
-	{
-		double dFollowingGap = arrdData[FOLLOWING_VEHICLE_GAP];
-		double dFollowingRelVelY = arrdData[FOLLOWING_VEHICLE_REL_VEL];
-
-		dFollowingGap += dFollowingRelVelY * dDelta;
-
-		arrdData[FOLLOWING_VEHICLE_GAP] = dFollowingGap;
-	}
-
-	//! Check the limit of velocity X
+    /*
+    //! Check the limit of velocity X
 	double dAngle = qRadiansToDegrees(qAbs(dTgtVelX) / qAbs(dTgtVelY));
 	if (dAngle > 4.0 && bLaneChangingFlag == false) // Limit Vel X is only adapted during the lane keeping.
 	{
@@ -231,19 +170,21 @@ void CPredictor::update(bool bLaneChangingFlag, double* arrdData, double dTgtAcc
 	//! Check the velocity Y
 	if (dTgtVelY < 0.0)
 		dTgtVelY = 0.0;
+    */
+
 
 	// Update
-	dTgtPosX += dTgtVelX * dDelta;
+    dTgtVelX += dTgtAccX * dDelta;
+    dTgtVelY += dTgtAccY * dDelta;
+    dTgtPosX += dTgtVelX * dDelta;
 	dTgtPosY += dTgtVelY * dDelta;
-	dTgtVelX += dTgtAccX * dDelta;
-	dTgtVelY += dTgtAccY * dDelta;
 
 
 	// Save
-	arrdData[14] = dTgtPosX;
-	arrdData[15] = dTgtPosY;
-	arrdData[16] = dTgtVelX;
-	arrdData[17] = dTgtVelY;
+    arrdData[0] = dTgtPosX;
+    arrdData[1] = dTgtPosY;
+    arrdData[2] = dTgtVelX;
+    arrdData[3] = dTgtVelY;
 }
 
 void CPredictor::calculateAverageVelocity(int nTick, double* pdAdjData)

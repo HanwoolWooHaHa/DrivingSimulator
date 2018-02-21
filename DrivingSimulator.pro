@@ -22,7 +22,13 @@ SOURCES += main.cpp\
     Src/leastsquare.cpp \
     Library/libpf/bessel.cpp \
     Library/libpf/potential.cpp \
-    Library/libpf/vonMises.cpp
+    Library/libpf/vonMises.cpp \
+    Src/bayesian.cpp \
+    Src/majoritycount.cpp \
+    Src/predictor.cpp \
+    Src/evaluation.cpp \
+    Src/estimator.cpp \
+    Src/Navigation/sinusoidal.cpp
 
 HEADERS  += mainwindow.h \
     Include/birdView.h \
@@ -35,7 +41,15 @@ HEADERS  += mainwindow.h \
     Include/leastsquare.h \
     Library/libpf/bessel.h \
     Library/libpf/potential.h \
-    Library/libpf/vonMises.h
+    Library/libpf/vonMises.h \
+    Include/bayesian.h \
+    Include/majoritycount.h \
+    Include/predictor.h \
+    Include/Navigation/navigationMethod.h \
+    Include/evaluation.h \
+    Include/estimator.h \
+    Include/method.h \
+    Include/Navigation/sinusoidal.h
 
 FORMS    += mainwindow.ui
 LIBS += -lGLU

@@ -56,6 +56,8 @@ public:
 
 	void SetAutoFlag(bool bFlag) { m_bAutoFlag = bFlag; }
 
+    void SetDataMode(int nDataMode) { m_nDataMode = nDataMode; }
+
     void Initialize( void );
 
 	CWindow* pWindow;
@@ -66,9 +68,11 @@ private:
 	CPredictor* m_pPredictor;
 
 	void conductSingleData(void);
-	void conductAutoData(void);
+    void conductAllData(void);
 	void printAutomationResult(int nNumData);
     bool checkTestCondition(int nCurrentTrial, int nTick);
+
+    int m_nDataMode;
 
 public slots:
     void DoWork();
@@ -80,4 +84,6 @@ private:
 	bool m_bLoopFlag;
 	bool m_bAutoFlag;
 	int m_arrnDetectionTime[400][2];
+    double m_dSuccessCounter[10][3];
+    double m_dFailedCounter[10][3];
 };

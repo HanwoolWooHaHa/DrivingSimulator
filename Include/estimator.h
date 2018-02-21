@@ -14,7 +14,7 @@ class CMethod;
 class CEstimator
 {
 public:
-	enum {SVM=1, HMM};
+    enum {SVM=1, HMM, TRAJECTORY};
 
 	static CEstimator* GetInstance(int nMethod)
     {
@@ -28,6 +28,8 @@ public:
 
 private:
 	CEstimator(int nMethod);
+
+    int test( int nTick );
 
 	CDatabase* m_pDatabase;
 	CMethod* m_pMethod;

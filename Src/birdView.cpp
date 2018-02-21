@@ -11,7 +11,7 @@ CBirdView::CBirdView(QWidget *parent) : QGLWidget(parent)
 {
 	m_pDatabase = CDatabase::GetInstance();
 
-	this->setFixedSize( 800, 300 );
+    this->setFixedSize( 1200, 450 );
 	m_nTick = 0;
 }
 /*********************************************************************/
@@ -33,7 +33,9 @@ void CBirdView::Initialize( void )
 void CBirdView::initializeGL()
 {
     //qglClearColor( QColor(64, 32, 64) );
-	qglClearColor(QColor(160, 216, 239));
+    //qglClearColor(QColor(160, 216, 239));
+
+    qglClearColor(Qt::black);
     glEnable( GL_DEPTH_TEST );
 }
 
@@ -102,24 +104,30 @@ void CBirdView::paintGL()
 	}
 	else
 	{
-		//! Global座標系における自車の真上から見た視点
-        //gluLookAt(dGlobalPosX, dGlobalPosY, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, -1.0, 0.0, 0.0);
-
-        //gluLookAt(dGlobalPosX + m_fZoom, dGlobalPosY - m_fZoom, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, 0.4962, -0.4962, 0.7017);
+        dGlobalPosX += 40.0; // to change the center point of view
 
 		gluLookAt(dGlobalPosX - m_fZoom, dGlobalPosY + m_fZoom, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, -0.4962, 0.4962, 0.7017);
+
+        //gluLookAt(dGlobalPosX, dGlobalPosY, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, -1.0, 0.0, 0.0);
+        //gluLookAt(dGlobalPosX + m_fZoom, dGlobalPosY - m_fZoom, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, 0.4962, -0.4962, 0.7017);
 	}
 
 	glMatrixMode(GL_MODELVIEW);
 
     // 3. draw the highway
+    drawGround();
     drawHighway();
     drawLine();
 
-	drawText(dGlobalPosX, dGlobalPosY - 2.0, 1);
+    //drawText(dGlobalPosX, dGlobalPosY - 2.0, 1);
 
 	// 4. draw vehicles
 	drawVehiclesInDS();
+
+#if defined(TRAJECTORY_PREDICTION)
+    drawPredictedTrajectory();
+    drawGroundTruth();
+#endif
 	
     glFlush();
 }
@@ -131,7 +139,6 @@ void CBirdView::drawText(double x, double y, double z)
 	int nCurrentTrial = m_pDatabase->GetCurrentTrial();
 	int nNumTrial = m_pDatabase->GetNumTrial();
 	int nMeasurementTime = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, 1);
-    int nClass = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_CLASS);
 
 	if (nCurrentTrial < 0 || nCurrentTrial > nNumTrial)
 		nCurrentTrial = 0;
@@ -145,25 +152,50 @@ void CBirdView::drawText(double x, double y, double z)
     renderText(x + 1.0, y, z, txt, QFont("Arial", 12, QFont::Bold, false) );
 }
 
-void CBirdView::drawHighway(double dGlobalOwnX, double dGlobalOwnY, double dAttitude)
+void CBirdView::drawGround( void )
 {
-	glPushMatrix();
-	glLoadIdentity();
-
-    glTranslated(dGlobalOwnX, dGlobalOwnY, 0.0);
-    glRotatef(dAttitude, 0.0, 0.0, 1.0);
-
+    // 車線点群をすべて描く
+    glLoadIdentity();
     qglColor(Qt::darkGray);
 
-	// 윗면
-	glBegin(GL_POLYGON);
+    glEnable(GL_LINE);
+    //glLineStipple(1, 0xFCFC);
+    glLineWidth(0.3);
 
-    glVertex3f(-1000.0, -10.0, 0.0);
-    glVertex3f(-1000.0, 10.0, 0.0);
-    glVertex3f(1000.0, 10.0, 0.0);
-    glVertex3f(1000.0, -10.0, 0.0);
+    glBegin(GL_LINES);
 
-	glEnd();
+
+    //! Only draw the centerline
+    for(int i=-8; i<8; i++)
+    {
+        double dPosX1 = -300.0;
+        double dPosX2 = 3000.0;
+
+        double dPosY1 = DS_CENTERLINE + 50 * i;
+        double dPosY2 = DS_CENTERLINE + 50 * i;
+
+        GLdouble line[2][3] = { { dPosX1, dPosY1, 0.0 }, { dPosX2, dPosY2, 0.0 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+    }
+
+    for(int i=0; i<60; i++)
+    {
+        double dPosX1 = -300.0 + 50 * i;
+        double dPosX2 = -300.0 + 50 * i;
+
+        double dPosY1 = DS_CENTERLINE - 400;
+        double dPosY2 = DS_CENTERLINE + 400;
+
+        GLdouble line[2][3] = { { dPosX1, dPosY1, 0.0 }, { dPosX2, dPosY2, 0.0 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+    }
+
+
+    glEnd();
 }
 
 void CBirdView::drawHighway( void )
@@ -182,7 +214,7 @@ void CBirdView::drawHighway( void )
 	glVertex3f(3000.0, -2244.8, 0.0);
 
     glEnd();
-
+/*
     double dDelta = 0.0;
 
     while(dDelta < 3000.0)
@@ -194,7 +226,7 @@ void CBirdView::drawHighway( void )
 		glVertex3f(dDelta + 1.0, -2241.0, 0.0);
 		glVertex3f(dDelta, -2241.0, 0.0);
 
-        dDelta += 10.0;
+        dDelta += 30.0;
 
         glEnd();
     }
@@ -210,10 +242,11 @@ void CBirdView::drawHighway( void )
 		glVertex3f(dDelta + 1.0, -2256.0, 0.0);
 		glVertex3f(dDelta, -2256.0, 0.0);
 
-		dDelta += 10.0;
+        dDelta += 30.0;
 
 		glEnd();
 	}
+*/
 }
 
 void CBirdView::drawLine( void )
@@ -230,6 +263,7 @@ void CBirdView::drawLine( void )
 
 	glBegin(GL_LINES);
 
+    /*
     for (int n = 0; n<NUM_LINE; n++)
 	{
         double dPosX1 = -300.0;
@@ -243,161 +277,147 @@ void CBirdView::drawLine( void )
         glVertex3dv(line[0]);
         glVertex3dv(line[1]);
 	}
+    */
+
+    //! Only draw the centerline
+    double dPosX1 = -300.0;
+    double dPosX2 = 3000.0;
+
+    double dPosY1 = -2248.4;
+    double dPosY2 = -2248.4;
+
+    GLdouble line[2][3] = { { dPosX1, dPosY1, 0.01 }, { dPosX2, dPosY2, 0.01 } };
+
+    glVertex3dv(line[0]);
+    glVertex3dv(line[1]);
 
     glEnd();
 }
 
-void CBirdView::drawTargetVehicleTrajectory( void )
+void CBirdView::drawGroundTruth( void )
 {
-    if( m_nTick == 0 )
-        return;
+    double dLength = 4.54;
+    double dWidth = 1.84;
 
-    int nDataLength = CDatabase::GetInstance()->GetDataLength();
+    dLength *= 0.5;
+    dWidth *= 0.5;
 
     glLoadIdentity();
     qglColor(Qt::red);
 
-    glEnable(GL_LINE_STIPPLE);
-    glLineStipple(1, 0xFFFF);
-
+    glPointSize(5);
     glBegin(GL_LINES);
 
-    for( int t=m_nTick; t<nDataLength; t++ )
-    {
-        double dPreGlobalPosX = m_pDatabase->GetData(TARGET, 0, t-1, DATA_PACKET_X) * FEET_TO_METER;
-        double dPreGlobalPosY = m_pDatabase->GetData(TARGET, 0, t-1, DATA_PACKET_Y) * FEET_TO_METER;
-        double dGlobalPosX = m_pDatabase->GetData(TARGET, 0, t, DATA_PACKET_X) * FEET_TO_METER;
-        double dGlobalPosY = m_pDatabase->GetData(TARGET, 0, t, DATA_PACKET_Y) * FEET_TO_METER;
+    int nNumIndexGroundTruth = (int)(TRAJECTORY_PREDICTION_TIME / DS_DELTA_T); // prediction time X 120 Hz;
+    int nIndex = (int)(DS_TRJ_DRW_DELTA / DS_DELTA_T);
 
-        GLdouble line[2][3] = { { dPreGlobalPosX, dPreGlobalPosY, 0.01 }, { dGlobalPosX, dGlobalPosY, 0.01 } };
+    for (int i = 0; i <= nNumIndexGroundTruth; i+=nIndex)
+    {
+        int nCurrentTrial = m_pDatabase->GetCurrentTrial();
+        double dPosX = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick+i, DS_OWN_X);
+        double dPosY = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick+i, DS_OWN_Y);
+
+        GLdouble line[4][3] = { { dPosX - dLength, dPosY - dWidth, 0.012 }, { dPosX + dLength, dPosY - dWidth, 0.012 }, { dPosX + dLength, dPosY + dWidth, 0.012 }, { dPosX - dLength, dPosY + dWidth, 0.012 } };
+
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+
+        glVertex3dv(line[1]);
+        glVertex3dv(line[2]);
+
+        glVertex3dv(line[2]);
+        glVertex3dv(line[3]);
+
+        glVertex3dv(line[3]);
+        glVertex3dv(line[0]);
+    }
+/*
+    for (int i = 0; i < nNumIndexGroundTruth; i+=nIndex)
+    {
+        int nCurrentTrial = m_pDatabase->GetCurrentTrial();
+
+        double dPosX1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick+i, DS_OWN_X);
+        double dPosY1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick+i, DS_OWN_Y);
+        double dPosX2 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick+i+nIndex, DS_OWN_X);
+        double dPosY2 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick+i+nIndex, DS_OWN_Y);
+
+        if(dPosX2 < dPosX1)
+            break;
+
+        GLdouble line[2][3] = { { dPosX1, dPosY1, 0.01 }, { dPosX2, dPosY2, 0.01 } };
 
         glVertex3dv(line[0]);
         glVertex3dv(line[1]);
     }
+*/
 
     glEnd();
 }
 
 void CBirdView::drawPredictedTrajectory(void)
 {
-	glLoadIdentity();
-	qglColor(Qt::green);
+    double dLength = 4.54;
+    double dWidth = 1.84;
 
-	glPointSize(5);
-	glBegin(GL_POINTS);
+    dLength *= 0.5;
+    dWidth *= 0.5;
 
-	for (int i = 0; i < (int)(TRAJECTORY_PREDICTION_TIME * 10); i++)
-	{
-		double dPosX = 0.0;
-		double dPosY = 0.0;
-		double dPrePosX = 0.0;
-		double dPrePosY = 0.0;
+    glLoadIdentity();
+    qglColor(Qt::green);
 
-		m_pDatabase->GetPredictedTrajectory(i, &dPosX, &dPosY);
-		m_pDatabase->GetPredictedTrajectory(i-1, &dPrePosX, &dPrePosY);
+    glPointSize(5);
+    glBegin(GL_LINES);
 
-		glVertex3f(dPosX, dPosY, 0.01);
-	}
+    int nIndexPredictedTrajectory = (int)(TRAJECTORY_PREDICTION_TIME / DS_TRJ_PRD_DELTA); // prediction time X 10 Hz;
+    int nIndex = (int)(DS_TRJ_DRW_DELTA / DS_TRJ_PRD_DELTA);
 
-	glEnd();
-}
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX = 0.0;
+        double dPosY = 0.0;
 
-void CBirdView::drawPredictedPosition(void)
-{
-	double dLength = m_pDatabase->GetData(TARGET, 0, m_nTick, DATA_PACKET_WIDTH);
-	double dWidth = m_pDatabase->GetData(TARGET, 0, m_nTick, DATA_PACKET_LENGTH);
+        CDatabase::GetInstance()->GetPredictedTrajectory(i, &dPosX, &dPosY);
 
-	dLength = 0.5 * dLength * FEET_TO_METER;
-	dWidth = 0.5 * dWidth * FEET_TO_METER;
+        GLdouble line[4][3] = { { dPosX - dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY + dWidth, 0.01 }, { dPosX - dLength, dPosY + dWidth, 0.01 } };
 
-	glLoadIdentity();
-	qglColor(Qt::green);
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
 
-	glPointSize(5);
-	glBegin(GL_LINES);
+        glVertex3dv(line[1]);
+        glVertex3dv(line[2]);
 
-	for (int i = 0; i < (int)(TRAJECTORY_PREDICTION_TIME * 10); i++)
-	{
-		double dPosX = 0.0;
-		double dPosY = 0.0;
+        glVertex3dv(line[2]);
+        glVertex3dv(line[3]);
 
-		m_pDatabase->GetPredictedTrajectory(i, &dPosX, &dPosY);
-		
-		GLdouble line[4][3] = { { dPosX - dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY + dWidth, 0.01 }, { dPosX - dLength, dPosY + dWidth, 0.01 } };
-		
-		glVertex3dv(line[0]);
-		glVertex3dv(line[1]);
+        glVertex3dv(line[3]);
+        glVertex3dv(line[0]);
+    }
 
-		glVertex3dv(line[1]);
-		glVertex3dv(line[2]);
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX1 = 0.0;
+        double dPosY1 = 0.0;
+        double dPosX2 = 0.0;
+        double dPosY2 = 0.0;
 
-		glVertex3dv(line[2]);
-		glVertex3dv(line[3]);
+        if(i==0)
+        {
+            int nCurrentTrial = m_pDatabase->GetCurrentTrial();
+            dPosX1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_OWN_X);
+            dPosY1 = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_OWN_Y);
+        }
+        else
+            CDatabase::GetInstance()->GetPredictedTrajectory(i-nIndex, &dPosX1, &dPosY1);
 
-		glVertex3dv(line[3]);
-		glVertex3dv(line[0]);
-	}
+        CDatabase::GetInstance()->GetPredictedTrajectory(i, &dPosX2, &dPosY2);
 
-	glEnd();
+        GLdouble line[2][3] = { { dPosX1, dPosY1, 0.01 }, { dPosX2, dPosY2, 0.01 } };
 
-	if (CDatabase::GetInstance()->GetCollisionFlag())
-	{
-		qglColor(Qt::black);
+        glVertex3dv(line[0]);
+        glVertex3dv(line[1]);
+    }
 
-		glPointSize(5);
-		glBegin(GL_LINES);
-
-		for (int i = 0; i < (int)(TRAJECTORY_PREDICTION_TIME * 10); i++)
-		{
-			double dPosX = 0.0;
-			double dPosY = 0.0;
-
-			m_pDatabase->GetRePredictedTrajectory(i, &dPosX, &dPosY);
-
-			GLdouble line[4][3] = { { dPosX - dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY - dWidth, 0.01 }, { dPosX + dLength, dPosY + dWidth, 0.01 }, { dPosX - dLength, dPosY + dWidth, 0.01 } };
-
-			glVertex3dv(line[0]);
-			glVertex3dv(line[1]);
-
-			glVertex3dv(line[1]);
-			glVertex3dv(line[2]);
-
-			glVertex3dv(line[2]);
-			glVertex3dv(line[3]);
-
-			glVertex3dv(line[3]);
-			glVertex3dv(line[0]);
-		}
-
-		glEnd();
-	}
-}
-
-void CBirdView::drawLineMarkings(void)
-{
-#if 0
-	// 車線点群をすべて描く
-	glLoadIdentity();
-	qglColor(Qt::white);
-
-	glPointSize(6);
-	glEnable(GL_POINT_SMOOTH);
-	glBegin(GL_POINTS);
-
-	int nMax = m_pDatabase->GetNumMarks();
-
-	for (int n = 0; n<NUM_LANE; n++)
-	{
-		for (int i = 0; i<nMax; i++)
-		{
-			double dPosX = m_pDatabase->GetData(CDatabase::LANE, n, i, 0);
-			double dPosY = m_pDatabase->GetData(CDatabase::LANE, n, i, 1);
-
-			glVertex3f(dPosX, dPosY, 0.1);
-		}
-	}
-	glEnd();
-#endif
+    glEnd();
 }
 
 void CBirdView::drawVehiclesInDS(void)
@@ -423,13 +443,13 @@ void CBirdView::drawVehiclesInDS(void)
 		{
             dGlobalX = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_PRECED_X);
             dGlobalY = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_PRECED_Y);
-			color = Qt::yellow;
+            color = Qt::blue;
 		}
 		else
 		{
             dGlobalX = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_LEAD_X);
             dGlobalY = m_pDatabase->GetData(DS, nCurrentTrial, m_nTick, DS_LEAD_Y);
-			color = Qt::yellow;
+            color = Qt::yellow;
 		}
 
 		renderVehicle(dGlobalX, dGlobalY, dAttitude, dLength, dWidth, color);
@@ -445,7 +465,6 @@ void CBirdView::drawVehicle( int nVehicleType, int nVehicleIndex )
     double dLength = 0.0;
     double dWidth = 0.0;
 	QColor color;
-    int nVehicleNo = 0;
 
     switch( nVehicleType )
 	{
@@ -456,15 +475,9 @@ void CBirdView::drawVehicle( int nVehicleType, int nVehicleIndex )
         dLength = m_pDatabase->GetData(TARGET, nVehicleIndex, m_nTick, DATA_PACKET_LENGTH);
         dWidth = m_pDatabase->GetData(TARGET, nVehicleIndex, m_nTick, DATA_PACKET_WIDTH);
         color = Qt::red;
-		break;
+        break;
 
     case ADJACENT:
-        dGlobalX = m_pDatabase->GetData(ADJACENT, nVehicleIndex, m_nTick, ADJ_DATA_PACKET_X);
-        dGlobalY = m_pDatabase->GetData(ADJACENT, nVehicleIndex, m_nTick, ADJ_DATA_PACKET_Y);
-        dLength = m_pDatabase->GetDataInfo(ADJACENT, nVehicleIndex, 2);
-        dWidth = m_pDatabase->GetDataInfo(ADJACENT, nVehicleIndex, 3);
-        nVehicleNo = m_pDatabase->GetDataInfo(ADJACENT, nVehicleIndex, 0);
-        dAttitude = 90.0;
         color = Qt::yellow;
         break;
 	}
@@ -474,15 +487,6 @@ void CBirdView::drawVehicle( int nVehicleType, int nVehicleIndex )
     dLength *= FEET_TO_METER;
     dWidth *= FEET_TO_METER;
 
-    int nLeadVehicleNo = m_pDatabase->GetAdjacentVehicleData( LEAD_VEHICLE_NO );
-    int nRearVehicleNo = m_pDatabase->GetAdjacentVehicleData( REAR_VEHICLE_NO );
-    int nPrecedingVehicleNo = m_pDatabase->GetAdjacentVehicleData( PRECEDING_VEHICLE_NO );
-    int nFollowingVehicleNo = m_pDatabase->GetAdjacentVehicleData( FOLLOWING_VEHICLE_NO );
-
-
-    if( (nVehicleType == ADJACENT) && (nVehicleNo == nLeadVehicleNo || nVehicleNo == nRearVehicleNo || nVehicleNo == nPrecedingVehicleNo || nVehicleNo == nFollowingVehicleNo) )
-        color = Qt::blue;
-
     //! 車を指定の位置に描く
     if( nVehicleType == TARGET )
         renderVehicle(dGlobalX, dGlobalY, dAttitude, dLength, dWidth, color);
@@ -491,11 +495,6 @@ void CBirdView::drawVehicle( int nVehicleType, int nVehicleIndex )
     if( bShowOthers )
     {
         renderVehicle(dGlobalX, dGlobalY, dAttitude, dLength, dWidth, color);
-    }
-    else
-    {
-        if( (nVehicleType == ADJACENT) && (nVehicleNo == nLeadVehicleNo || nVehicleNo == nRearVehicleNo || nVehicleNo == nPrecedingVehicleNo || nVehicleNo == nFollowingVehicleNo) )
-            renderVehicle(dGlobalX, dGlobalY, dAttitude, dLength, dWidth, color);
     }
 }
 

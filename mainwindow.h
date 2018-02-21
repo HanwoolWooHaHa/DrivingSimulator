@@ -27,6 +27,8 @@ private:
 
 private slots:
     void OpenFile();
+    void OpenAllFile();
+    void OpenThreeFiles();
     void ResetButtonEntered();
     void StartButtonEntered();
     void TrainingButtonEntered();

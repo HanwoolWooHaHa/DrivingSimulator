@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>880</width>
-    <height>578</height>
+    <width>1240</width>
+    <height>633</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <property name="geometry">
      <rect>
       <x>630</x>
-      <y>10</y>
+      <y>0</y>
       <width>131</width>
       <height>31</height>
      </rect>
@@ -40,7 +40,7 @@
     <property name="geometry">
      <rect>
       <x>740</x>
-      <y>460</y>
+      <y>540</y>
       <width>121</width>
       <height>41</height>
      </rect>
@@ -53,7 +53,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>10</y>
+      <y>0</y>
       <width>551</width>
       <height>31</height>
      </rect>
@@ -72,7 +72,7 @@
     <property name="geometry">
      <rect>
       <x>780</x>
-      <y>10</y>
+      <y>0</y>
       <width>41</width>
       <height>31</height>
      </rect>
@@ -91,9 +91,9 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>50</y>
-      <width>841</width>
-      <height>401</height>
+      <y>40</y>
+      <width>1200</width>
+      <height>450</height>
      </rect>
     </property>
     <property name="autoFillBackground">
@@ -107,7 +107,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>460</y>
+      <y>540</y>
       <width>121</width>
       <height>41</height>
      </rect>
@@ -123,7 +123,7 @@
     <property name="geometry">
      <rect>
       <x>150</x>
-      <y>460</y>
+      <y>540</y>
       <width>121</width>
       <height>41</height>
      </rect>
@@ -139,7 +139,7 @@
     <property name="geometry">
      <rect>
       <x>610</x>
-      <y>460</y>
+      <y>540</y>
       <width>121</width>
       <height>41</height>
      </rect>
@@ -148,14 +148,22 @@
      <string>Reset</string>
     </property>
    </widget>
+   <zorder>widget</zorder>
+   <zorder>label2</zorder>
+   <zorder>btnStart</zorder>
+   <zorder>lblFileName</zorder>
+   <zorder>lblNumTrial</zorder>
+   <zorder>btnTraining</zorder>
+   <zorder>btnTesting</zorder>
+   <zorder>btnReset</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>880</width>
-     <height>18</height>
+     <width>1240</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -163,7 +171,9 @@
      <string>&amp;File</string>
     </property>
     <addaction name="action_Open"/>
+    <addaction name="actionOpenAll"/>
     <addaction name="action_Save"/>
+    <addaction name="actionOpenThree"/>
    </widget>
    <addaction name="menu_File"/>
   </widget>
@@ -184,6 +194,16 @@
   <action name="action_Save">
    <property name="text">
     <string>&amp;Save</string>
+   </property>
+  </action>
+  <action name="actionOpenAll">
+   <property name="text">
+    <string>Open&amp;All</string>
+   </property>
+  </action>
+  <action name="actionOpenThree">
+   <property name="text">
+    <string>OpenThree</string>
    </property>
   </action>
  </widget>
@@ -286,6 +306,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionOpenAll</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>OpenAllFile()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>439</x>
+     <y>288</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionOpenThree</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>OpenThreeFiles()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>439</x>
+     <y>288</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>OpenFile()</slot>
@@ -294,5 +346,7 @@
   <slot>TrainingButtonEntered()</slot>
   <slot>TestingButtonEntered()</slot>
   <slot>SaveDataPerTrial()</slot>
+  <slot>OpenAllFile()</slot>
+  <slot>OpenThreeFiles()</slot>
  </slots>
 </ui>

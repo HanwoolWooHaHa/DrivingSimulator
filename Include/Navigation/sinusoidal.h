@@ -10,13 +10,11 @@ public:
     ~CSinusoidalModel();
 
     virtual void Initialize(void);
-    virtual int CalculateAccelerate(int nTick, bool bLaneChangingFlag, double* pdDataArray, double* pdAccX, double* pdAccY);
+    virtual int CalculateAccelerate(int nIntention, double* parrdData, double* pdAccX, double* pdAccY);
 
 private:
 
-    double calcSinusoidal(bool bLaneChangingFlag, int nTick);
-    double calcCarPotential(bool bLaneChangingFlag, double dPosY, double* pdDataArray);
-    double calcGoalPotential(bool bLaneChangingFlag, double dPosX, double dPosY, double dGoalX, double dGoalY);
+    double calcSinusoidal(int nIntention, double* parrdData);
 };
 
 #endif // SINUSOIDAL_H

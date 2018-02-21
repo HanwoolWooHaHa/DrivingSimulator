@@ -65,6 +65,39 @@ void MainWindow::OpenFile()
     m_pLoopManager->Initialize();
 }
 
+void MainWindow::OpenAllFile()
+{
+    ui->btnStart->setEnabled(true);
+    ui->btnReset->setEnabled(true);
+    ui->btnTesting->setEnabled(true);
+
+    m_pLoopManager->SetDataMode(DRIVING_SIMULATOR_ALLDATA);
+
+    m_pLoopManager->Initialize();
+}
+
+void MainWindow::OpenThreeFiles()
+{
+    ui->btnTraining->setEnabled(true);
+
+
+    QString filePath;
+
+    filePath = DS_FILE_PATH;
+    m_nDataMode = DRIVING_SIMULATOR_THREE;
+
+    int nReturn = CDatabase::GetInstance()->LoadData(m_nDataMode, NULL);
+
+    int nTrial = CDatabase::GetInstance()->GetNumTrial();
+
+    ui->lblNumTrial->setText(QString::number(nTrial));
+
+    if(nReturn)
+        m_pLoopManager->Initialize();
+    else
+        qDebug() << "MainWindow @ Problem occured during loading";
+}
+
 void MainWindow::ResetButtonEntered()
 {
     m_pLoopManager->ResetTime();
