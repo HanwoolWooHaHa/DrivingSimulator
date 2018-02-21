@@ -8,6 +8,10 @@
 * @brief	this file defines constant values
 */
 
+//! Select OS
+//#define MAC
+#define UBUNTU
+
 #define TRAFFIC
 //#define MEASUREMENT
 #define DRVING_SIMULATOR
@@ -22,10 +26,15 @@
 //#define LANE_CHANGE_DETECTION
 #define TRAJECTORY_PREDICTION
 
-
-#define TRAFFIC_FILE_PATH "../../Dataset/i-80/traffic/"
-#define DS_FILE_PATH "../../Dataset/mazda/DS3_20170428/DS_data_1704/"
-#define DS_TRAININGFILE_PATH "../../Dataset/mazda/DS3_20170428/Driver/"
+#ifdef UBUNTU
+    #define TRAFFIC_FILE_PATH "../../Dataset/i-80/traffic/"
+    #define DS_FILE_PATH "../../Dataset/mazda/DS3_20170428/DS_data_1704/"
+    #define DS_TRAININGFILE_PATH "../../Dataset/mazda/DS3_20170428/Driver/"
+#elif MAC
+    #define TRAFFIC_FILE_PATH "/Users/woohanwool/Dataset/i-80/traffic/"
+    #define DS_FILE_PATH "/Users/woohanwool/Dataset/mazda/DS3_20170428/DS_data_1704/"
+    #define DS_TRAININGFILE_PATH "/Users/woohanwool/Dataset/mazda/DS3_20170428/Driver/"
+#endif
 
 #define DONE 1
 #define FAIL -1
