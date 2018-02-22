@@ -232,7 +232,7 @@ void CMySvm::saveModel( void )
 
 void CMySvm::loadModel( void )
 {
-    QString modelFile = "Model/proposed(SVM).txt";
+    QString modelFile = "Model/160324_Proposed(SVM).txt";
 
     std::string cStr = modelFile.toStdString();
     int nLen = modelFile.length();

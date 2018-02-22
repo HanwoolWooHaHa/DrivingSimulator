@@ -81,18 +81,11 @@ int CEstimator::test( int nTick )
 
 
     if(dCurrentPosY > DS_CENTERLINE && dPosY > DS_CENTERLINE)
-    {
-        if(nPreIntention==RETURNING || nPreIntention==ADJUSTMENT)
-            nIntention = ADJUSTMENT;
-        else
-            nIntention = KEEPING;
-    }
+        nIntention = KEEPING;
     else if(dCurrentPosY > DS_CENTERLINE && dPosY <= DS_CENTERLINE)
         nIntention = CHANGING;
     else if(dCurrentPosY <= DS_CENTERLINE && dPosY <= DS_CENTERLINE)
         nIntention = ARRIVAL;
-    else if(dCurrentPosY <= DS_CENTERLINE && dPosY > DS_CENTERLINE)
-        nIntention = RETURNING;
     else
         nIntention = DEFAULT;
 

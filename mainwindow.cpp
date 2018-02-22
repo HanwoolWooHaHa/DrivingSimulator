@@ -29,6 +29,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QGridLayout *layout = new QGridLayout;
     layout->addWidget(m_pLoopManager->pWindow, 0, 0);
     ui->widget->setLayout(layout);
+    this->setFixedSize(1240, 680);
 }
 
 MainWindow::~MainWindow()
@@ -56,10 +57,6 @@ void MainWindow::OpenFile()
         ui->btnTesting->setEnabled(true);
 
         ui->lblFileName->setText(fileName);
-
-        int nTrial = CDatabase::GetInstance()->GetNumTrial();
-
-        ui->lblNumTrial->setText(QString::number(nTrial));
     }
 
     m_pLoopManager->Initialize();
@@ -70,6 +67,7 @@ void MainWindow::OpenAllFile()
     ui->btnStart->setEnabled(true);
     ui->btnReset->setEnabled(true);
     ui->btnTesting->setEnabled(true);
+    ui->lblFileName->setText("auto simulation was selected");
 
     m_pLoopManager->SetDataMode(DRIVING_SIMULATOR_ALLDATA);
 
@@ -87,10 +85,6 @@ void MainWindow::OpenThreeFiles()
     m_nDataMode = DRIVING_SIMULATOR_THREE;
 
     int nReturn = CDatabase::GetInstance()->LoadData(m_nDataMode, NULL);
-
-    int nTrial = CDatabase::GetInstance()->GetNumTrial();
-
-    ui->lblNumTrial->setText(QString::number(nTrial));
 
     if(nReturn)
         m_pLoopManager->Initialize();

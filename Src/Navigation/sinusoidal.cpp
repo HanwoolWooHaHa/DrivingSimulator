@@ -3,6 +3,7 @@
 #include "../../Include/database.h"
 
 #include <qmath.h>
+#include <qdebug.h>
 
 CSinusoidalModel::CSinusoidalModel()
 {}
@@ -35,17 +36,13 @@ double CSinusoidalModel::calcSinusoidal(int nIntention, double* parrdData)
     double dAccY = 0.0;
 
     // If the vehicle does not change a lane, the acceleration in X direction is zero
-    if(nIntention == KEEPING || nIntention == ARRIVAL || nIntention == ADJUSTMENT)
+    if(nIntention == KEEPING || nIntention == ADJUSTMENT)
     {
         return dAccY;
     }
-    else if(nIntention == CHANGING)
+    else if(nIntention == CHANGING || nIntention == ARRIVAL )
     {
         dGoalY = DS_CENTERLINE - 0.5 * DS_LANE_WIDTH;
-    }
-    else if(nIntention == RETURNING)
-    {
-        dGoalY = DS_CENTERLINE + 0.5 * DS_LANE_WIDTH;
     }
 
     // Calculate the lateral acceleration
@@ -53,9 +50,7 @@ double CSinusoidalModel::calcSinusoidal(int nIntention, double* parrdData)
     double dCurrentT = dLaneChangingDuration - qAbs((dGoalY - dPosY) / dVelY);
 
     dAccY = (2 * M_PI * DS_LANE_WIDTH) / (dLaneChangingDuration * dLaneChangingDuration) * qSin(2 * M_PI * dCurrentT / dLaneChangingDuration);
-
-    if(nIntention == CHANGING)
-        dAccY *= -1;
+    dAccY *= -1;
 
     return dAccY;
 }

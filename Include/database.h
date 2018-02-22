@@ -139,6 +139,10 @@ public:
     void SetIntentionProbability(int nClass, double dValue);
     double GetIntentionProbability(int nClass);
 
+    void SetDetectionResult( int nTrialNo, int nColumn, double dValue );
+
+    void SaveDetectionResult( void );
+
 private:
     CDatabase();
 
@@ -169,4 +173,5 @@ private:
     double m_dIntentionProbability[NUM_CLASS];
     int m_nEstimatedResultData[DS_T_MAX];
     double m_dFeatureData[DS_NUM_TRIAL][DS_T_MAX][FEATURE_VECTOR_DIMENSION];
+    double m_dDetectionResult[1000][4];
 };

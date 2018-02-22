@@ -63,6 +63,7 @@ void CDatabase::Initialize( void )
     memset(m_dIntentionProbability, 0, sizeof(double) * NUM_CLASS);
     memset(m_nEstimatedResultData, 0, sizeof(int) * DS_T_MAX);
     memset(m_dFeatureData, 0, sizeof(double) * DS_NUM_TRIAL * DS_T_MAX * FEATURE_VECTOR_DIMENSION);
+    memset(m_dDetectionResult, 0, sizeof(double) * 1000 * 4);
 }
 
 void CDatabase::SetCollisionFlag(bool bFlag)
@@ -157,6 +158,11 @@ void CDatabase::GetLeadTrajectory(int nIndex, double* pdPosX, double* pdPosY)
 int CDatabase::GetDataInfo(int nVehicleIndex, int nColumn)
 {
 	return m_nDataInfo[nVehicleIndex][nColumn];
+}
+
+void CDatabase::SetDetectionResult( int nTrialNo, int nColumn, double dValue )
+{
+    m_dDetectionResult[nTrialNo][nColumn] = dValue;
 }
 
 /// \brief CDatabase::LoadData
@@ -488,6 +494,44 @@ int CDatabase::SaveDSdataResult(int nTrial, int nDataLength)
 	delete out;
 
 	return DONE;
+}
+
+void CDatabase::SaveDetectionResult( void )
+{
+    QString fileName = "../Log/detection_result.csv";
+
+    QFile* fp = new QFile(fileName);
+    if (!fp->open(QIODevice::WriteOnly))
+    {
+        return;
+    }
+
+    QTextStream* out = new QTextStream(fp);
+
+    for( int n=0; n<NUM_DRIVER; n++ )
+    {
+        for( int i=0; i<NUM_STATE; i++ )
+        {
+            for( int k=0; k<10; k++ )
+            {
+                int nTrialNo = 100 * n + 10 * i + k;
+
+                if( m_dDetectionResult[nTrialNo][0] == 0.0 )
+                    continue;
+
+                *out << nTrialNo << "," << m_dDetectionResult[nTrialNo][0] << "," << "," << m_dDetectionResult[nTrialNo][1] << "," << m_dDetectionResult[nTrialNo][2] << "," << m_dDetectionResult[nTrialNo][3] << endl;
+            }
+
+            *out << endl;
+        }
+
+        *out << endl;
+    }
+
+    fp->close();
+
+    delete fp;
+    delete out;
 }
 
 void CDatabase::SetDsParameterData(int nTrial, int nTick, int nColumn, double dValue)

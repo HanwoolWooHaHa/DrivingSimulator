@@ -21,6 +21,8 @@
 #include <QLabel>
 #include <QGridLayout>
 #include <QDebug>
+
+//#define USE_GRAPH
 /*********************************************************************/
 CLoopManager::CLoopManager( void ) : DELTA_T(100)
 {
@@ -48,6 +50,9 @@ CLoopManager::CLoopManager( void ) : DELTA_T(100)
             m_dFailedCounter[n][i] = 0;
         }
     }
+
+    m_nNumFalseAlarm = m_nNumFail = m_nNumSuccess = 0;
+    m_dDetectionTime = 0.0;
 }
 
 CLoopManager::~CLoopManager()
@@ -208,6 +213,10 @@ void CLoopManager::conductAllData(void)
     static int nDriverNo = 0;
     static int nStateNo = 0;
 
+    static int nCrossingTime = 0;
+    static int nDetectionTime = 0;
+    static bool bDetectionFlag = false;
+
     if(m_nTick == 0)
     {
         if(nCurrentTrial == 0)
@@ -237,6 +246,11 @@ void CLoopManager::conductAllData(void)
 
         nDataLength = CDatabase::GetInstance()->GetDataInfo(nCurrentTrial, DATA_INFO_PACKET_DATA_LENGTH);
         CDatabase::GetInstance()->SetCurrentTrial(nCurrentTrial);
+
+        //! find the crossing time when the target vehicle crosses the centerline
+        nCrossingTime = findCrossingTime( nCurrentTrial, nDataLength );
+        nDetectionTime = 0;
+        bDetectionFlag = false;
     }
 
 
@@ -270,11 +284,12 @@ void CLoopManager::conductAllData(void)
     //qDebug() << "loopManager.cpp @ t = " << m_nTick << " : intention = " << nIntention << ", Dst = " << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_DISTANCE) << ", Vel = " << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_LAT_VELOCITY) << ", Pot = "  << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_POTENTIAL);
 
     if (nIntention != DEFAULT)
+    {
         m_pPredictor->Predict(m_nTick, nIntention);
-//    if (nIntention == ADJUSTMENT)
-//        m_pExtractor->ChangeSide(-1);
+        CEvaluation::GetInstance()->CalcTrajectoryPredictionError(m_nTick);
 
-    CEvaluation::GetInstance()->CalcTrajectoryPredictionError(m_nTick);
+        bDetectionFlag = checkDetectionTime( m_nTick, nIntention, nCrossingTime, bDetectionFlag, &nDetectionTime);
+    }
 
 
 
@@ -291,13 +306,24 @@ void CLoopManager::conductAllData(void)
             //qDebug() << "Trial=" << nCurrentTrial << ": " << nFinal;
         }
 
+#if defined(USE_GRAPH)
         int nFileNo = nDriverNo * 100 + nStateNo * 10 + nCurrentTrial;
         pWindow->SaveImage(nFileNo);
+#endif
+
+        if( bDetectionFlag )
+        {
+            CDatabase::GetInstance()->SetDetectionResult( nDriverNo * 100 + nStateNo * 10 + nCurrentTrial, 0, (double)(nDetectionTime)/120.0 );
+        }
+
+        CDatabase::GetInstance()->SetDetectionResult( nDriverNo * 100 + nStateNo * 10 + nCurrentTrial, 1, CEvaluation::GetInstance()->GetAvgError(0) );
+        CDatabase::GetInstance()->SetDetectionResult( nDriverNo * 100 + nStateNo * 10 + nCurrentTrial, 2, CEvaluation::GetInstance()->GetAvgError(1) );
+        CDatabase::GetInstance()->SetDetectionResult( nDriverNo * 100 + nStateNo * 10 + nCurrentTrial, 3, CEvaluation::GetInstance()->GetAvgError(2) );
 
         //ResetTime();
         m_nTick = 0;
 
-        CEvaluation::GetInstance()->PrintAvgError();
+        //CEvaluation::GetInstance()->PrintAvgError();
 
         // save the data per a trial
         CDatabase::GetInstance()->SaveDSdataResult(nDriverNo, nStateNo, nCurrentTrial, nDataLength);
@@ -305,7 +331,7 @@ void CLoopManager::conductAllData(void)
         nCurrentTrial++;
         CDatabase::GetInstance()->SetCurrentTrial(nCurrentTrial);
         nDataLength = CDatabase::GetInstance()->GetDataInfo(nCurrentTrial, DATA_INFO_PACKET_DATA_LENGTH);
-        int nNumTrial = CDatabase::GetInstance()->GetNumTrial();
+        int nNumTrial = 10; //CDatabase::GetInstance()->GetNumTrial();
 
         CLeastSquare::GetInstance()->Initialize();
         CTrainer::GetInstance()->Initialize(0);
@@ -318,11 +344,8 @@ void CLoopManager::conductAllData(void)
 
             nStateNo++;
 
-            qDebug() << endl << endl << "Classification accuracy = ";
-            for(int i=0; i<NUM_CLASS; i++)
-                qDebug() << CTrainer::GetInstance()->GetAccuracy(i) << ", ";
-
-            CTrainer::GetInstance()->PrintClassificationCounter();
+            //printDrivingStyleRecognitionResult();
+            printDetectionResult( nDriverNo, nStateNo );
 
             for(int i=0; i<3; i++)
             {
@@ -388,9 +411,88 @@ void CLoopManager::conductAllData(void)
 
             //CMajorityCount::GetInstance()->PrintAccuracy();
 
+            CDatabase::GetInstance()->SaveDetectionResult();
+
             m_bLoopFlag = false;
         }
     }
+}
+
+void CLoopManager::printDrivingStyleRecognitionResult( void )
+{
+    qDebug() << endl << endl << "Classification accuracy = ";
+    for(int i=0; i<NUM_CLASS; i++)
+        qDebug() << CTrainer::GetInstance()->GetAccuracy(i) << ", ";
+
+    CTrainer::GetInstance()->PrintClassificationCounter();
+}
+
+int CLoopManager::findCrossingTime( int nCurrentTrial, int nDataLength )
+{
+    int nCrossingTime = -1;
+
+    for(int t=0; t<nDataLength; t++)
+    {
+        double dPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, t, DS_OWN_Y);
+
+        if(dPosY <= DS_CENTERLINE)
+        {
+            nCrossingTime = t;
+            break;
+        }
+    }
+
+    return nCrossingTime;
+}
+
+bool CLoopManager::checkDetectionTime( int nTick, int nIntention, int nCrossingTime, bool bDetectionFlag, int* pnDetectionTime )
+{
+    bool bFlag = false;
+    int nDetectionTime = INT_MAX;
+
+    //! if lane changing was already detected
+    if( bDetectionFlag )
+        return true;
+
+
+    if( nCrossingTime == -1 || nCrossingTime == 0 )
+    {
+        *pnDetectionTime = INT_MAX;
+        return false;
+    }
+
+
+    if( nIntention == CHANGING )
+    {
+        nDetectionTime = nCrossingTime - nTick;
+        bFlag = true;
+
+        qDebug() << "CLoopManager.cpp @ t = " << nTick << " : Lane changing was detected, TIME = " << (double)(nDetectionTime)/120.0;
+
+        if( nDetectionTime <= 0 )
+            m_nNumFail++;
+        else
+        {
+            if( nDetectionTime >= ( DETECTION_TIME_LIMIT * 120) )
+                m_nNumFalseAlarm++;
+            else
+                m_nNumSuccess++;
+        }
+
+        *pnDetectionTime = nDetectionTime;
+        m_dDetectionTime += nDetectionTime;
+    }
+
+    return bFlag;
+}
+
+void CLoopManager::printDetectionResult( int nDriverNo, int nStateNo )
+{
+    m_dDetectionTime = m_dDetectionTime / ( 120.0 * (double)( m_nNumFail + m_nNumFalseAlarm + m_nNumSuccess ) );
+    qDebug() << "CLoopManager.cpp @ Driver No." << nDriverNo << ", State No." << nStateNo << " : False alarm=" << m_nNumFalseAlarm << ", Fail=" << m_nNumFail << ", Success=" << m_nNumSuccess <<", DetectionTime=" << m_dDetectionTime;
+
+    m_nNumSuccess = m_nNumFalseAlarm = m_nNumFail = 0;
+    m_dDetectionTime = 0.0;
 }
 
 /*********************************************************************/
@@ -401,9 +503,10 @@ CWindow::CWindow()
     setWindowTitle(tr("Simulation viewer"));
 
     m_pBirdView = new CBirdView();
+#if defined(USE_GRAPH)
     m_pGraph = new CGraph();
-
     m_pGraph->show();
+#endif
 
     //QLabel *birdViewLabel = new QLabel(tr("TOP VIEW"));
     //birdViewLabel->setAlignment(Qt::AlignHCenter);
@@ -424,7 +527,9 @@ void CWindow::Initialize( void )
 void CWindow::Update( int tick )
 {
     m_pBirdView->Update( tick );
+#if defined(USE_GRAPH)
     m_pGraph->Update( tick );
+#endif
 }
 
 void CWindow::SaveImage(int nTrialNo)

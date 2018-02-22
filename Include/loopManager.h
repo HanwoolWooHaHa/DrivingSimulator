@@ -77,8 +77,10 @@ private:
     void conductAllData(void);
 	void printAutomationResult(int nNumData);
     bool checkTestCondition(int nCurrentTrial, int nTick);
-
-    int m_nDataMode;
+    void printDrivingStyleRecognitionResult( void );
+    void printDetectionResult( int nDriverNo, int nStateNo );
+    int findCrossingTime( int nCurrentTrial, int nDataLength );
+    bool checkDetectionTime( int nTick, int nIntention, int nCrossingTime, bool bDetectionFlag, int* pnDetectionTime );
 
 public slots:
     void DoWork();
@@ -92,4 +94,9 @@ private:
 	int m_arrnDetectionTime[400][2];
     double m_dSuccessCounter[10][3];
     double m_dFailedCounter[10][3];
+    int m_nDataMode;
+    int m_nNumFalseAlarm;
+    int m_nNumFail;
+    int m_nNumSuccess;
+    double m_dDetectionTime;
 };

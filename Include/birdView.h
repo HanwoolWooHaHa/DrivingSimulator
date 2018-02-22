@@ -43,11 +43,14 @@ private:
     bool m_bDrawFlagPreceding;
     bool m_bDrawFlagLead;
 
+    double m_dViewPointX;
+    double m_dViewPointY;
+
 protected:
     void initializeGL();
     void paintGL();
     void resizeGL(int w, int h);
 	void wheelEvent(QWheelEvent *event);
-	//void mousePressEvent(QMouseEvent *event);
-	//void mouseMoveEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event);
+    void mouseMoveEvent(QMouseEvent *event);
 };

@@ -262,7 +262,7 @@ void CPredictor::update(double* arrdData, double dTgtAccX, double dTgtAccY, doub
     dTgtVelX += dTgtAccX * dDelta;
     dTgtVelY += dTgtAccY * dDelta;
     dTgtPosX += dTgtVelX * dDelta;
-	dTgtPosY += dTgtVelY * dDelta;
+    dTgtPosY += dTgtVelY * dDelta;
 
 
 	// Save

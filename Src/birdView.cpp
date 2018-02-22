@@ -18,6 +18,8 @@ CBirdView::CBirdView(QWidget *parent) : QGLWidget(parent)
     m_bDrawFlagTarget = true;
     m_bDrawFlagPreceding = false;
     m_bDrawFlagLead = false;
+
+    m_dViewPointX = m_dViewPointY = 0.0;
 }
 /*********************************************************************/
 /* Public functions */
@@ -32,6 +34,7 @@ void CBirdView::Initialize( void )
 	m_fZoom = 60.0;
 	m_lastPt.setX( 0.0);
     m_lastPt.setY( 0.0);
+    m_dViewPointX = m_dViewPointY = 0.0;
 }
 
 void CBirdView::DrawTrajectory( int nNoTrajectory, bool bFlag )
@@ -74,7 +77,7 @@ void CBirdView::wheelEvent(QWheelEvent *event)
     updateGL();
 }
 
-#if 0
+#if 1
 void CBirdView::mousePressEvent(QMouseEvent *event)
 {
 	m_lastPt = event->pos();
@@ -87,8 +90,8 @@ void CBirdView::mouseMoveEvent(QMouseEvent *event)
 
 	if (event->buttons() && Qt::LeftButton) 
     {
-		glRotatef(dy*0.1, 1.0f, 0.0f, 0.0f);
-		glRotatef(dx*0.1, 0.0f, 1.0f, 0.0f);
+        m_dViewPointX = dx;
+        m_dViewPointY = dy;
     }
 }
 #endif
@@ -123,7 +126,7 @@ void CBirdView::paintGL()
 	{
         dGlobalPosX += 40.0; // to change the center point of view
 
-		gluLookAt(dGlobalPosX - m_fZoom, dGlobalPosY + m_fZoom, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, -0.4962, 0.4962, 0.7017);
+        gluLookAt(dGlobalPosX - m_fZoom + m_dViewPointX, dGlobalPosY + m_fZoom - m_dViewPointY, m_fZoom, dGlobalPosX + m_dViewPointX, dGlobalPosY - m_dViewPointY, 0.0, -0.4962, 0.4962, 0.7017);
 
         //gluLookAt(dGlobalPosX, dGlobalPosY, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, -1.0, 0.0, 0.0);
         //gluLookAt(dGlobalPosX + m_fZoom, dGlobalPosY - m_fZoom, m_fZoom, dGlobalPosX, dGlobalPosY, 0.0, 0.4962, -0.4962, 0.7017);
