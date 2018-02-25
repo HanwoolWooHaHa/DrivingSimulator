@@ -8,8 +8,9 @@
 
 #include "../Include/predictor.h"
 #include "../Include/database.h"
-//#include "../Include/Navigation/normalPFM.h"
+#include "../Include/Navigation/normalPFM.h"
 #include "../Include/Navigation/sinusoidal.h"
+#include "../Include/leastsquare.h"
 
 #include <qdebug.h>
 #include <qmath.h>
@@ -19,10 +20,10 @@ CPredictor::CPredictor(void)
     m_pNaviMethod = NULL;
 
     //! Use the potential field method
-    //m_pNaviMethod = new CNormalPFM();
+    m_pNaviMethod = new CNormalPFM();
 
     //! Use the sinusoidal model
-    m_pNaviMethod = new CSinusoidalModel();
+    //m_pNaviMethod = new CSinusoidalModel();
 }
 
 CPredictor::~CPredictor(void)
@@ -60,7 +61,6 @@ bool CPredictor::Predict(int nTick)
 
 
     double dDelta = DS_TRJ_PRD_DELTA;
-    bool bLaneChangingFlag = false;
     int nUpdateCounter = 0;
 
     // save the current position
@@ -96,59 +96,6 @@ bool CPredictor::Predict( int nTick, int nIntention )
         nCurrentTrial = 0;
 
 
-    //! Predict the target's trajectory
-    double dTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_X); // direction of travel, longitudinal position
-    double dTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_Y); // lateral position
-    double dTgtVelX = 0.0;
-    double dTgtVelY = 0.0;
-
-    if (nTick != 0)
-    {
-        double dPreTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_X);
-        double dPreTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_Y);
-
-        dTgtVelX = (dTgtPosX - dPreTgtPosX) * 120.0; // 120 Hz = measurement period
-        dTgtVelY = (dTgtPosY - dPreTgtPosY) * 120.0; // 120 Hz = measurement period
-
-        //qDebug() << "predictor.cpp @ t = " << nTick << " : VelX = " << dTgtVelX << ",  VelY = " << dTgtVelY;
-    }
-
-    double arrdTgtInfo[4] = { dTgtPosX, dTgtPosY, dTgtVelX, dTgtVelY };
-
-
-    double dDelta = DS_TRJ_PRD_DELTA;
-    int nUpdateCounter = 0;
-
-    // save the current position
-    CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
-    nUpdateCounter++;
-
-    // Conduct the trajectory prediction
-    for (double t = 0.0; t < TRAJECTORY_PREDICTION_TIME; t += dDelta)
-    {
-        double dTgtAccX = 0.0;
-        double dTgtAccY = 0.0;
-
-        m_pNaviMethod->CalculateAccelerate(nIntention, arrdTgtInfo, &dTgtAccX, &dTgtAccY);
-
-        // Update positions of vehicles
-        update( arrdTgtInfo, dTgtAccX, dTgtAccY, dDelta );
-
-
-//        if(nIntention == ARRIVAL && (arrdTgtInfo[1] < DS_CENTERLINE - 0.5 * DS_LANE_WIDTH))
-//            arrdTgtInfo[1] = DS_CENTERLINE - 0.5 * DS_LANE_WIDTH;
-//        if(nIntention == ADJUSTMENT && (arrdTgtInfo[1] > DS_CENTERLINE + 0.5 * DS_LANE_WIDTH))
-//            arrdTgtInfo[1] = DS_CENTERLINE + 0.5 * DS_LANE_WIDTH;
-
-
-        // Save the predicted trajectory
-        CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
-
-        nUpdateCounter++;
-    }
-
-
-
     //! Predict the preceding vehicle's trajectory
     double dPrcdPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_PRECED_X); // direction of travel, longitudinal position
     double dPrcdPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_PRECED_Y); // lateral position
@@ -167,7 +114,9 @@ bool CPredictor::Predict( int nTick, int nIntention )
     double arrdPrcdInfo[4] = { dPrcdPosX, dPrcdPosY, dPrcdVelX, dPrcdVelY };
 
 
-    nUpdateCounter = 0;
+    int nUpdateCounter = 0;
+    double dDelta = DS_TRJ_PRD_DELTA;
+
 
     // save the current position
     CDatabase::GetInstance()->SetPrecedingTrajectory(nUpdateCounter, arrdPrcdInfo[0], arrdPrcdInfo[1]);
@@ -225,6 +174,70 @@ bool CPredictor::Predict( int nTick, int nIntention )
 
         // Save the predicted trajectory
         CDatabase::GetInstance()->SetLeadTrajectory(nUpdateCounter, arrdLeadInfo[0], arrdLeadInfo[1]);
+
+        nUpdateCounter++;
+    }
+
+
+
+    //! Predict the target's trajectory
+    double dTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_X); // direction of travel, longitudinal position
+    double dTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_Y); // lateral position
+    double dTgtVelX = 0.0;
+    double dTgtVelY = 0.0;
+    double dTgAccX = 0.0;
+    double dTgAccY = 0.0;
+
+    if( nTick == 0 || nTick == 1 )
+    {
+        dTgtVelX = dTgtVelY = dTgAccX = dTgAccY = 0.0;
+    }
+    else
+    {
+        double dPreTgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_X);
+        double dPreTgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-1, DS_OWN_Y);
+
+        dTgtVelX = (dTgtPosX - dPreTgtPosX) * 120.0; // 120 Hz = measurement period
+        dTgtVelY = (dTgtPosY - dPreTgtPosY) * 120.0; // 120 Hz = measurement period
+
+        double dPre2TgtPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-2, DS_OWN_X);
+        double dPre2TgtPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick-2, DS_OWN_Y);
+
+        double dPreTgtVelX = ( dPreTgtPosX - dPre2TgtPosX ) * 120.0;
+        double dPreTgtVelY = ( dPreTgtPosY - dPre2TgtPosY ) * 120.0;
+
+        dTgAccX = ( dTgtVelX - dPreTgtVelX ) * 120.0;
+        dTgAccY = ( dTgtVelY - dPreTgtVelY ) * 120.0;
+    }
+
+
+    //CLeastSquare::GetInstance()->Estimate( nTick, dTgAccX );
+
+
+    double arrdTgtInfo[4] = { dTgtPosX, dTgtPosY, dTgtVelX, dTgtVelY };
+
+
+
+    nUpdateCounter = 0;
+
+    // save the current position
+    CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
+    nUpdateCounter++;
+
+    // Conduct the trajectory prediction
+    for (double t = 0.0; t < TRAJECTORY_PREDICTION_TIME; t += dDelta)
+    {
+        double dTgtAccX = 0.0;
+        double dTgtAccY = 0.0;
+
+        m_pNaviMethod->CalculateAccelerate( nIntention, arrdTgtInfo, &dTgtAccX, &dTgtAccY, nUpdateCounter );
+
+        // Update positions of vehicles
+        update( arrdTgtInfo, dTgtAccX, dTgtAccY, dDelta );
+
+
+        // Save the predicted trajectory
+        CDatabase::GetInstance()->SetPredictedTrajectory(nUpdateCounter, arrdTgtInfo[0], arrdTgtInfo[1]);
 
         nUpdateCounter++;
     }

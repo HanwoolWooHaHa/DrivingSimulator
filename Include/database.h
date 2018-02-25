@@ -133,8 +133,8 @@ public:
 	void SetDsClassificationResult(int nCurrentTrial, int nTick, int nResult);
     int GetDsClassificationResult(int nCurrentTrial, int nTick);
 
-    void SetDsParameterData(int nTrial, int nTick, int nColumn, double dValue);
-    double GetDsParameterData(int nTrial, int nTick, int nColumn);
+    void SetDsParameterData( int nColumn, double dValue );
+    double GetDsParameterData( int nColumn );
 
     void SetIntentionProbability(int nClass, double dValue);
     double GetIntentionProbability(int nClass);
@@ -142,6 +142,13 @@ public:
     void SetDetectionResult( int nTrialNo, int nColumn, double dValue );
 
     void SaveDetectionResult( void );
+    void SaveDetectionResult( int nDriverNo );
+
+    void SetGapAcceptanceProbability( double dValue );
+    double GetGapAcceptanceProbability( void );
+
+    void SetCriticalLeadGap( double dValue );
+    double GetCriticalLeadGap( void );
 
 private:
     CDatabase();
@@ -163,7 +170,6 @@ private:
 	bool m_bCollisionFlag;
     int m_nGroundTruth;
     double m_dDrivingSimulatorData[DS_NUM_TRIAL][DS_T_MAX][DS_NUM_COLUMN];
-    double m_dDsParameterData[DS_NUM_TRIAL][DS_T_MAX][DS_NUM_COLUMN];
 	int m_nTrial;
 	int m_nCurrentTrial;
 
@@ -174,4 +180,8 @@ private:
     int m_nEstimatedResultData[DS_T_MAX];
     double m_dFeatureData[DS_NUM_TRIAL][DS_T_MAX][FEATURE_VECTOR_DIMENSION];
     double m_dDetectionResult[1000][4];
+    double m_dDsParameter[2];
+    double m_dAcceptanceProbability;
+    double m_dCriticalLeadGap;
+    double m_dSumCriticalLeadGap;
 };

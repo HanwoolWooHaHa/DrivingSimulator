@@ -34,7 +34,9 @@ SOURCES += main.cpp\
     Src/calcNormalCum.cpp \
     Src/extractor.cpp \
     Src/graph.cpp \
-    Src/helper.cpp
+    Src/helper.cpp \
+    Src/Navigation/normalPFM.cpp \
+    Src/gapAcceptance.cpp
 
 HEADERS  += mainwindow.h \
     Include/birdView.h \
@@ -61,7 +63,9 @@ HEADERS  += mainwindow.h \
     Include/calcNormalCum.h \
     Include/extractor.h \
     Include/graph.h \
-    Include/helper.h
+    Include/helper.h \
+    Include/Navigation/normalPFM.h \
+    Include/gapAcceptance.h
 
 FORMS    += mainwindow.ui
 LIBS += -lGLU

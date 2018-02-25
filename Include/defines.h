@@ -25,6 +25,7 @@
 //#define DRIVING_STYLE_RECOGNITION
 #define LANE_CHANGE_DETECTION
 #define TRAJECTORY_PREDICTION
+#define GAP_ACCEPTANCE_MODEL
 
 #ifdef UBUNTU
     #define TRAFFIC_FILE_PATH "../../Dataset/i-80/traffic/"

@@ -27,6 +27,7 @@ private:
     void drawPrecedingTrajectory(void);
     void drawLeadTrajectory(void);
     void drawText( double x, double y, double z );
+    void drawCriticalGap( int nTick );
 
     void renderVehicle(double dPosX, double dPosY, double dAttitude, double dLength, double dWidth, const QColor& color);
 

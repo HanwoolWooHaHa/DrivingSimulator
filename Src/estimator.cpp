@@ -56,6 +56,7 @@ void CEstimator::Estimate( int nTick, int nMode )
     {
         nEstimationResult = test(nTick);
         CDatabase::GetInstance()->SetDrivingIntention( nEstimationResult );
+        CDatabase::GetInstance()->SetEstimatedResult(nTick, (double)nEstimationResult);
     }
     else
         m_pMethod->Test( nTick, nMode );
@@ -86,6 +87,8 @@ int CEstimator::test( int nTick )
         nIntention = CHANGING;
     else if(dCurrentPosY <= DS_CENTERLINE && dPosY <= DS_CENTERLINE)
         nIntention = ARRIVAL;
+    else if(dCurrentPosY <= DS_CENTERLINE && dPosY > DS_CENTERLINE)
+        nIntention = CHANGING;
     else
         nIntention = DEFAULT;
 

@@ -16,6 +16,7 @@
 #include "../Include/estimator.h"
 #include "../Include/extractor.h"
 #include "../Include/graph.h"
+#include "../Include/gapAcceptance.h"
 
 #include <QThread>
 #include <QLabel>
@@ -273,31 +274,51 @@ void CLoopManager::conductAllData(void)
 #ifndef LANE_CHANGE_DETECTION
     //! predict the trajectory of the target vehicle
     m_pPredictor->Predict(m_nTick);
-#endif
+#else
     //! Extract the feature vector for lane-change detection
     m_pExtractor->Extract(m_nTick);
+#endif
+
+
 
     //! Estimate the driving intention
     m_pEstimator->Estimate(m_nTick, TARGET);
 
     int nIntention = CDatabase::GetInstance()->GetDrivingIntention();
+
+#ifdef GAP_ACCEPTANCE_MODEL
+    //! Adjust the gap acceptance model
+    CGapAcceptance::GetInstance()->Predict( m_nTick );
+
+    if( nIntention == KEEPING || nIntention == CHANGING )
+        judgeByGapAcceptanceModel( m_nTick );
+
+    nIntention = CDatabase::GetInstance()->GetDrivingIntention();
+    //qDebug() << "loopManager.cpp @ t = " << m_nTick << " : intention = " << nIntention;
+#endif
+
+
+
     //qDebug() << "loopManager.cpp @ t = " << m_nTick << " : intention = " << nIntention << ", Dst = " << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_DISTANCE) << ", Vel = " << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_LAT_VELOCITY) << ", Pot = "  << CDatabase::GetInstance()->GetFeatureData(nCurrentTrial, m_nTick, FEATURE_PACKET_POTENTIAL);
 
+#ifdef TRAJECTORY_PREDICTION
     if (nIntention != DEFAULT)
     {
+#ifdef LANE_CHANGE_DETECTION
         m_pPredictor->Predict(m_nTick, nIntention);
+#endif
         CEvaluation::GetInstance()->CalcTrajectoryPredictionError(m_nTick);
-
-        bDetectionFlag = checkDetectionTime( m_nTick, nIntention, nCrossingTime, bDetectionFlag, &nDetectionTime);
     }
+#endif
 
+    bDetectionFlag = checkDetectionTime( m_nTick, nIntention, nCrossingTime, bDetectionFlag, &nDetectionTime);
 
 
     //! Update a window screen
     pWindow->Update(m_nTick);
     m_nTick++;
 
-    if (m_nTick > nDataLength)
+    if (m_nTick >= nDataLength)
     {
         int nTrialCheck = nCurrentTrial % 2;
         if(nTrialCheck != 0)
@@ -323,7 +344,7 @@ void CLoopManager::conductAllData(void)
         //ResetTime();
         m_nTick = 0;
 
-        //CEvaluation::GetInstance()->PrintAvgError();
+        CEvaluation::GetInstance()->PrintAvgError();
 
         // save the data per a trial
         CDatabase::GetInstance()->SaveDSdataResult(nDriverNo, nStateNo, nCurrentTrial, nDataLength);
@@ -336,6 +357,7 @@ void CLoopManager::conductAllData(void)
         CLeastSquare::GetInstance()->Initialize();
         CTrainer::GetInstance()->Initialize(0);
         CEvaluation::GetInstance()->InitializeAvgError();
+        CGapAcceptance::GetInstance()->Initialize();
         m_pExtractor->Initialize();
 
         if (nCurrentTrial >= nNumTrial)
@@ -369,6 +391,8 @@ void CLoopManager::conductAllData(void)
         {
             nCurrentTrial = 0;
             nStateNo = 0;
+
+            CDatabase::GetInstance()->SaveDetectionResult( nDriverNo );
 
             nDriverNo++;
         }
@@ -410,7 +434,6 @@ void CLoopManager::conductAllData(void)
             qDebug() << "Loop @ Accuracy = " << dSumSuccess / (dSumSuccess+dSumFail) * 100.0;
 
             //CMajorityCount::GetInstance()->PrintAccuracy();
-
             CDatabase::GetInstance()->SaveDetectionResult();
 
             m_bLoopFlag = false;
@@ -493,6 +516,42 @@ void CLoopManager::printDetectionResult( int nDriverNo, int nStateNo )
 
     m_nNumSuccess = m_nNumFalseAlarm = m_nNumFail = 0;
     m_dDetectionTime = 0.0;
+}
+
+void CLoopManager::judgeByGapAcceptanceModel( int nTick )
+{
+    double dProbIntention[NUM_CLASS] = { 0.0 };
+
+    for(int i=0; i<NUM_CLASS; i++)
+    {
+        dProbIntention[i] = CDatabase::GetInstance()->GetIntentionProbability( i );
+    }
+
+    double dLambda = 0.56;
+
+    double dGapProb = CDatabase::GetInstance()->GetGapAcceptanceProbability();
+
+    dProbIntention[KEEPING-1] = dLambda * dProbIntention[KEEPING-1] + ( 1 - dLambda ) * ( 1 - dGapProb );
+    dProbIntention[CHANGING-1] = dLambda * dProbIntention[CHANGING-1] + ( 1 - dLambda ) * dGapProb;
+
+    double dSum = dProbIntention[KEEPING-1] + dProbIntention[CHANGING-1];
+
+    dProbIntention[KEEPING-1] = dProbIntention[KEEPING-1] / dSum;
+    dProbIntention[CHANGING-1] = dProbIntention[CHANGING-1] / dSum;
+
+    int nIntention = DEFAULT;
+
+    if( dProbIntention[KEEPING-1] >= dProbIntention[CHANGING-1] )
+    {
+        nIntention = KEEPING;
+    }
+    else
+    {
+        nIntention = CHANGING;
+    }
+
+    CDatabase::GetInstance()->SetEstimatedResult( nTick, nIntention );
+    CDatabase::GetInstance()->SetDrivingIntention( nIntention );
 }
 
 /*********************************************************************/

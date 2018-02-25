@@ -16,18 +16,18 @@ public:
     ~CLeastSquare() {}
 
     int Estimate(int nTick);
+    int Estimate( int nTick, double dAccX );
     void Initialize(void);
 
 private:
     CLeastSquare();
     bool isNaN(double x);
 
+
     double m_dCv;
     double m_dCs;
 
-    QQueue<double> inputArray0;
-    QQueue<double> inputArray1;
-    QQueue<double> inputArray2;
+    QQueue<double> inputArray;
     QQueue<double> outputArray;
 };
 

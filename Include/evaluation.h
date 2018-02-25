@@ -23,6 +23,7 @@ public:
 	~CEvaluation();
 
 	void CalcTrajectoryPredictionError(int nTick);
+    void CalcTrajectoryPredictionError3s(int nTick);
     double GetAvgError(int nIndex); // 0: AVG in Both of X, Y direction, 1: X direction, 2: Y direction
     int GetNumRecordedVehicles(void);
     double GetData(int nVehicleIndex, int nTime, int nPredictionTime, int nColumn);

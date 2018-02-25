@@ -39,6 +39,8 @@ static QString STATE[6] =
 CDatabase::CDatabase()
 {
     Initialize();
+
+    memset(m_dDetectionResult, 0, sizeof(double) * 1000 * 4);
 }
 ///////////////////////////////////////////////////////////////////////////
 /* Public functions */
@@ -51,19 +53,20 @@ void CDatabase::Initialize( void )
 	m_nGroundTruth = 0;
 
     memset(m_dDrivingSimulatorData, 0, sizeof(double) * DS_NUM_TRIAL * DS_T_MAX * DS_NUM_COLUMN);
-    memset(m_dDsParameterData, 0, sizeof(double) * DS_NUM_TRIAL * DS_T_MAX * DS_NUM_COLUMN);
 	m_nTrial = 0;
 	m_nCurrentTrial = 0;
 
     m_bShowOthers = true;
     m_nDrivingIntention = 0;
 	m_bCollisionFlag = false;
+    m_dAcceptanceProbability = 0.0;
+    m_dCriticalLeadGap = 0.0;
+    m_dSumCriticalLeadGap = 0.0;
 
     memset(m_dPredictedTrajectory, 0, sizeof(double) * 100 *2);
     memset(m_dIntentionProbability, 0, sizeof(double) * NUM_CLASS);
     memset(m_nEstimatedResultData, 0, sizeof(int) * DS_T_MAX);
     memset(m_dFeatureData, 0, sizeof(double) * DS_NUM_TRIAL * DS_T_MAX * FEATURE_VECTOR_DIMENSION);
-    memset(m_dDetectionResult, 0, sizeof(double) * 1000 * 4);
 }
 
 void CDatabase::SetCollisionFlag(bool bFlag)
@@ -135,6 +138,29 @@ void CDatabase::GetPrecedingTrajectory(int nIndex, double* pdPosX, double* pdPos
 {
     *pdPosX = m_dPrecedingTrajectory[nIndex][0];
     *pdPosY = m_dPrecedingTrajectory[nIndex][1];
+}
+
+void CDatabase::SetCriticalLeadGap( double dValue )
+{
+    static int nCounter = 0;
+
+    if( dValue == 0.0 )
+    {
+        m_dSumCriticalLeadGap = 0.0;
+        nCounter = 0;
+        m_dCriticalLeadGap = 0.0;
+
+        return;
+    }
+
+    nCounter++;
+    m_dSumCriticalLeadGap += dValue;
+    m_dCriticalLeadGap = m_dSumCriticalLeadGap / (double)nCounter;
+}
+
+double CDatabase::GetCriticalLeadGap( void )
+{
+    return m_dCriticalLeadGap;
 }
 
 void CDatabase::SetLeadTrajectory(int nIndex, double dPosX, double dPosY)
@@ -496,9 +522,10 @@ int CDatabase::SaveDSdataResult(int nTrial, int nDataLength)
 	return DONE;
 }
 
-void CDatabase::SaveDetectionResult( void )
+void CDatabase::SaveDetectionResult( int nDriverNo )
 {
-    QString fileName = "../Log/detection_result.csv";
+    QString fileName = "../Log/detection_result";
+    fileName += QString::number(nDriverNo) + ".csv";
 
     QFile* fp = new QFile(fileName);
     if (!fp->open(QIODevice::WriteOnly))
@@ -508,7 +535,40 @@ void CDatabase::SaveDetectionResult( void )
 
     QTextStream* out = new QTextStream(fp);
 
-    for( int n=0; n<NUM_DRIVER; n++ )
+    for( int i=0; i<NUM_STATE; i++ )
+    {
+        for( int k=0; k<10; k++ )
+        {
+            int nTrialNo = 100 * nDriverNo + 10 * i + k;
+
+            if( m_dDetectionResult[nTrialNo][0] == 0.0 )
+                continue;
+
+            *out << nTrialNo << "," << m_dDetectionResult[nTrialNo][0] << "," << "," << m_dDetectionResult[nTrialNo][1] << "," << m_dDetectionResult[nTrialNo][2] << "," << m_dDetectionResult[nTrialNo][3] << endl;
+        }
+
+        *out << endl;
+    }
+
+    fp->close();
+
+    delete fp;
+    delete out;
+}
+
+void CDatabase::SaveDetectionResult( void )
+{
+    QString fileName = "../Log/detection_result_all.csv";
+
+    QFile* fp = new QFile(fileName);
+    if (!fp->open(QIODevice::WriteOnly))
+    {
+        return;
+    }
+
+    QTextStream* out = new QTextStream(fp);
+
+    for( int n=0; n<NUM_DRIVER; n++)
     {
         for( int i=0; i<NUM_STATE; i++ )
         {
@@ -524,8 +584,6 @@ void CDatabase::SaveDetectionResult( void )
 
             *out << endl;
         }
-
-        *out << endl;
     }
 
     fp->close();
@@ -534,14 +592,14 @@ void CDatabase::SaveDetectionResult( void )
     delete out;
 }
 
-void CDatabase::SetDsParameterData(int nTrial, int nTick, int nColumn, double dValue)
+void CDatabase::SetDsParameterData( int nColumn, double dValue )
 {
-    m_dDsParameterData[nTrial][nTick][nColumn] = dValue;
+    m_dDsParameter[nColumn] = dValue;
 }
 
-double CDatabase::GetDsParameterData(int nTrial, int nTick, int nColumn)
+double CDatabase::GetDsParameterData( int nColumn )
 {
-    return m_dDsParameterData[nTrial][nTick][nColumn];
+    return m_dDsParameter[nColumn];
 }
 
 void CDatabase::SetIntentionProbability(int nClass, double dValue)
@@ -572,6 +630,16 @@ void CDatabase::SetFeatureData(int nVehicleIndex, int nTime, int nColumn, double
 double CDatabase::GetFeatureData(int nVehicleIndex, int nTime, int nColumn)
 {
     return m_dFeatureData[nVehicleIndex][nTime][nColumn];
+}
+
+void CDatabase::SetGapAcceptanceProbability( double dValue )
+{
+    m_dAcceptanceProbability = dValue;
+}
+
+double CDatabase::GetGapAcceptanceProbability( void )
+{
+    return m_dAcceptanceProbability;
 }
 
 ///////////////////////////////////////////////////////////////////////////

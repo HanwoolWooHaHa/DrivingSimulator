@@ -157,6 +157,10 @@ void CBirdView::paintGL()
     if( m_bDrawFlagLead )
         drawLeadTrajectory();
 #endif
+
+#if defined(GAP_ACCEPTANCE_MODEL)
+    drawCriticalGap( m_nTick );
+#endif
 	
     glFlush();
 }
@@ -179,6 +183,58 @@ void CBirdView::drawText(double x, double y, double z)
 
     qglColor(Qt::black);
     renderText(x + 1.0, y, z, txt, QFont("Arial", 12, QFont::Bold, false) );
+}
+
+void CBirdView::drawCriticalGap( int nTick )
+{
+    double dLength = 4.54;
+    dLength *= 0.5;
+
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+    double dTgtPosX = m_pDatabase->GetData(DS, nCurrentTrial, nTick, DS_OWN_X);
+
+    if( dTgtPosX < DS_CENTERLINE )
+        return;
+
+    double dCriticalLeadGap = CDatabase::GetInstance()->GetCriticalLeadGap();
+
+    glPushMatrix();
+    glLoadIdentity();
+
+    qglColor(Qt::red);
+    glBegin(GL_POLYGON);
+
+    double dPosX1_Lead = dTgtPosX + dLength;
+    double dPosX2_Lead = dTgtPosX  + dLength + dCriticalLeadGap;
+    double dPosY1_Lead = DS_CENTERLINE;
+    double dPosY2_Lead = DS_CENTERLINE - DS_LANE_WIDTH;
+
+    glVertex3f(dPosX1_Lead, dPosY1_Lead, 0.01);
+    glVertex3f(dPosX2_Lead, dPosY1_Lead, 0.01);
+    glVertex3f(dPosX2_Lead, dPosY2_Lead, 0.01);
+    glVertex3f(dPosX1_Lead, dPosY2_Lead, 0.01);
+
+    glEnd();
+
+
+    qglColor(Qt::red);
+    glBegin(GL_LINES);
+
+    GLdouble line[4][3] = { { dPosX1_Lead, dPosY1_Lead, 0.012 }, { dPosX1_Lead + 50.0, dPosY1_Lead, 0.012 }, { dPosX1_Lead + 50.0, dPosY2_Lead, 0.012 }, { dPosX1_Lead, dPosY2_Lead, 0.012 } };
+
+    glVertex3dv(line[0]);
+    glVertex3dv(line[1]);
+
+    glVertex3dv(line[1]);
+    glVertex3dv(line[2]);
+
+    glVertex3dv(line[2]);
+    glVertex3dv(line[3]);
+
+    glVertex3dv(line[3]);
+    glVertex3dv(line[0]);
+
+    glEnd();
 }
 
 void CBirdView::drawGround( void )

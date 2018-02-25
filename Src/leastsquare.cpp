@@ -5,10 +5,48 @@
 #include <vector>
 #include <iostream>
 #include <qmath.h>
+#include <QDebug>
 
 using namespace std;
 using namespace dlib;
 
+typedef matrix<double,1,1> input_vector;
+typedef matrix<double,2,1> parameter_vector;
+
+static double model (const input_vector& input, const parameter_vector& params)
+{
+    const double p0 = params(0);
+    const double p1 = params(1);
+
+    const double i0 = input(0);
+
+    const double temp = -p0 * exp( - i0 * i0 / ( p1 * p1 ) ) * 2.0 * i0 / ( p1 * p1 ) + 0.2;
+
+    return temp*temp;
+}
+
+static double residual (const std::pair<input_vector, double>& data, const parameter_vector& params)
+{
+    return model(data.first, params) - data.second;
+}
+
+static parameter_vector residual_derivative (const std::pair<input_vector, double>& data, const parameter_vector& params)
+{
+    parameter_vector der;
+
+    const double p0 = params(0);
+    const double p1 = params(1);
+
+    const double i0 = data.first(0);
+
+    const double temp = -p0 * exp( - i0 * i0 / ( p1 * p1 ) ) * 2.0 * i0 / ( p1 * p1 ) + 0.2;
+
+    der(0) = i0*2*temp;
+
+    return der;
+}
+
+#if 0
 typedef matrix<double,3,1> input_vector;
 typedef matrix<double,2,1> parameter_vector;
 
@@ -53,6 +91,7 @@ static parameter_vector residual_derivative (const std::pair<input_vector, doubl
 
     return der;
 }
+#endif
 // ----------------------------------------------------------------------------------------
 CLeastSquare::CLeastSquare()
 {
@@ -61,18 +100,109 @@ CLeastSquare::CLeastSquare()
 
 void CLeastSquare::Initialize(void)
 {
-    m_dCs = 1.0;
-    m_dCv = 1.0;
+    m_dCs = 17.4;
+    m_dCv = 12.2;
 
-    inputArray0.clear();
-    inputArray1.clear();
-    inputArray2.clear();
+    CDatabase::GetInstance()->SetDsParameterData( 0, m_dCv);
+    CDatabase::GetInstance()->SetDsParameterData( 1, m_dCs);
 
+    inputArray.clear();
     outputArray.clear();
+}
+
+int CLeastSquare::Estimate( int nTick, double dAccX )
+{
+    int nSize = inputArray.size();
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+
+    if(nSize >= 1200)
+    {
+        inputArray.dequeue();
+        outputArray.dequeue();
+    }
+
+    double dPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_OWN_X);
+    double dPrecedX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick, DS_PRECED_X);
+
+    double dGap = dPrecedX - dPosX;
+
+    inputArray.enqueue( dGap );
+    outputArray.enqueue( dAccX );
+
+    nSize = inputArray.size();
+
+    //! Set two parameters : Cv, Cs
+    parameter_vector params = randm(2,1);
+    params(0) = m_dCv;
+    params(1) = m_dCs;
+    //cout << "params: " << trans(params) << endl;
+
+    // Now let's generate a bunch of input/output pairs according to our model.
+    std::vector<std::pair<input_vector, double> > data_samples;
+    input_vector input;
+
+
+
+    for (int t = 0; t < nSize; ++t)
+    {
+        input = randm(1,1);
+        input(0) = inputArray[t];
+        const double output = outputArray[t];
+
+        // save the pair
+        data_samples.push_back(make_pair(input, output));
+    }
+
+
+    int nCheck = nTick % 100;
+    if(nCheck == 0)
+    {
+        // Before we do anything, let's make sure that our derivative function defined above matches
+        // the approximate derivative computed using central differences (via derivative()).
+        // If this value is big then it means we probably typed the derivative function incorrectly.
+        //cout << "derivative error: " << length(residual_derivative(data_samples[0], params) - derivative(residual)(data_samples[0], params) ) << endl;
+        length(residual_derivative(data_samples[0], params) - derivative(residual)(data_samples[0], params) );
+
+
+
+        // Now let's use the solve_least_squares_lm() routine to figure out what the
+        // parameters are based on just the data_samples.
+        parameter_vector x;
+        //x = 1;
+        x(0) = m_dCv;
+        x(1) = m_dCs;
+
+        //cout << "Use Levenberg-Marquardt/quasi-newton hybrid" << endl;
+        // This version of the solver uses a method which is appropriate for problems
+        // where the residuals don't go to zero at the solution.  So in these cases
+        // it may provide a better answer.
+        solve_least_squares(objective_delta_stop_strategy(1e-7).be_verbose(),
+                            residual,
+                            residual_derivative,
+                            data_samples,
+                            x);
+
+        m_dCv = x(0);
+        m_dCs = x(1);
+    }
+
+    m_dCv = qAbs(m_dCv);
+    m_dCs = qAbs(m_dCs);
+
+    //! Save estimated parameters in database
+    CDatabase::GetInstance()->SetDsParameterData( 0, m_dCv);
+    CDatabase::GetInstance()->SetDsParameterData( 1, m_dCs);
+
+    //qDebug() << "leastsquare.cpp @ t=" << nTick << " : omega=" << m_dCv << ", sigma=" << m_dCs;
+
+    data_samples.clear();
+
+    return 0;
 }
 
 int CLeastSquare::Estimate(int nTick)
 {
+#if 0
     static double dPreXg = 0.0;
     static double dPreDotXg = 0.0;
     static double dPreDDotXg = 0.0;
@@ -208,6 +338,8 @@ int CLeastSquare::Estimate(int nTick)
     dPreDDotXg = dDDotXg;
 
     data_samples.clear();
+#endif
+
 
     return 0;
 }

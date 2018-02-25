@@ -107,6 +107,76 @@ void CEvaluation::CalcTrajectoryPredictionError(int nTick)
     //qDebug() << "evaluation.cpp @ t = " << nTick << " : Avg.Error X = " << dAvgErrorX << " : Avg.Error Y = " << dAvgErrorY;
 }
 
+void CEvaluation::CalcTrajectoryPredictionError3s(int nTick)
+{
+    int nCurrentTrial = CDatabase::GetInstance()->GetCurrentTrial();
+    int nDataLength = CDatabase::GetInstance()->GetDataInfo(nCurrentTrial, DATA_INFO_PACKET_DATA_LENGTH);
+
+
+    if(nTick < (5.0 * 120.0)) // evaluation is not performed within 5.0 sec from the start
+        return;
+    if(nTick > (nDataLength - (int)(5.0 * 120.0)))
+        return;
+
+
+
+    int nIndexPredictedTrajectory = (int)(TRAJECTORY_PREDICTION_TIME / DS_TRJ_PRD_DELTA); // prediction time X 10 Hz;
+    int nIndex = (int)(DS_TRJ_DRW_DELTA / DS_TRJ_PRD_DELTA);
+    int nIndexEvaluation = 0;
+
+
+    for (int i = 0; i <= nIndexPredictedTrajectory; i+=nIndex)
+    {
+        double dPosX = 0.0;
+        double dPosY = 0.0;
+
+        CDatabase::GetInstance()->GetPredictedTrajectory(i, &dPosX, &dPosY);
+
+        m_dEvaluationPoints[nIndexEvaluation][0] = dPosX;
+        m_dEvaluationPoints[nIndexEvaluation][1] = dPosY;
+
+        nIndexEvaluation++;
+    }
+
+
+
+    int nNumIndexGroundTruth = (int)(TRAJECTORY_PREDICTION_TIME / DS_DELTA_T); // prediction time X 120 Hz;
+    nIndex = (int)(DS_TRJ_DRW_DELTA / DS_DELTA_T);
+    nIndexEvaluation = 0;
+
+
+    for (int i = 0; i <= nNumIndexGroundTruth; i+=nIndex)
+    {
+        double dPosX = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick+i, DS_OWN_X);
+        double dPosY = CDatabase::GetInstance()->GetData(DS, nCurrentTrial, nTick+i, DS_OWN_Y);
+
+        m_dEvaluationPoints[nIndexEvaluation][2] = dPosX;
+        m_dEvaluationPoints[nIndexEvaluation][3] = dPosY;
+
+        nIndexEvaluation++;
+    }
+
+
+    //! Calculate the position error after 3 seconds
+    double dErrorX = m_dEvaluationPoints[2][0] - m_dEvaluationPoints[2][2]; // Predicted X - Ground truth X
+    double dErrorY = m_dEvaluationPoints[2][1] - m_dEvaluationPoints[2][3]; // Predicted Y - Ground truth Y
+    double dError = qSqrt(dErrorX*dErrorX + dErrorY*dErrorY);
+
+    if( std::isnan(dErrorX) || std::isnan(dErrorY) )
+    {
+        int nIntention = CDatabase::GetInstance()->GetDrivingIntention();
+        qDebug() << "evaluation.cpp @ t=" << nTick << " : Nand!!";
+    }
+
+    m_dAvgErrorSum += dError;
+    m_dAvgErrorSumX += qAbs(dErrorX);
+    m_dAvgErrorSumY += qAbs(dErrorY);
+
+    m_nAvgCounter++;
+
+    //qDebug() << "evaluation.cpp @ t = " << nTick << " : Avg.Error X = " << qAbs(dErrorX) << " : Avg.Error Y = " << qAbs(dErrorY);
+}
+
 double CEvaluation::GetAvgError(int nIndex)
 {
     double dValue = 0.0;

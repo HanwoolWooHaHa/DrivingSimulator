@@ -68,14 +68,14 @@ bool CMySvm::Test(int nTick, int nMode)
 		q->label = (signed char)dClassificationResult;
         q->prob = pdProbability[1];
 
-		CDatabase::GetInstance()->SetEstimatedResult(nTick, dClassificationResult);
+        CDatabase::GetInstance()->SetEstimatedResult( nTick, dClassificationResult );
         CDatabase::GetInstance()->SetDrivingIntention( (int)dClassificationResult );
 
         //qDebug() << "t = " << nTick << ": 1=" << pdProbability[0] << ", 2=" << pdProbability[1] << ", 3=" << pdProbability[2] << ", 4=" << pdProbability[3] << ",   int=" << (int)dClassificationResult;
 
         for(int i=0; i<NUM_CLASS; i++)
         {
-            CDatabase::GetInstance()->SetIntentionProbability(i, pdProbability[i]);
+            CDatabase::GetInstance()->SetIntentionProbability( i, pdProbability[i] );
         }
     }
 

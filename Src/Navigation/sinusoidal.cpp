@@ -16,7 +16,7 @@ CSinusoidalModel::~CSinusoidalModel()
 void CSinusoidalModel::Initialize()
 {}
 
-int CSinusoidalModel::CalculateAccelerate(int nIntention, double* parrdData, double* pdAccX, double* pdAccY)
+int CSinusoidalModel::CalculateAccelerate(int nIntention, double* parrdData, double* pdAccX, double* pdAccY, int nUpdateCounter)
 {
     //! Calculate the lateral acceleration by the sinusoidal model
     *pdAccY = calcSinusoidal(nIntention, parrdData);

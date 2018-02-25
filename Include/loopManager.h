@@ -81,6 +81,7 @@ private:
     void printDetectionResult( int nDriverNo, int nStateNo );
     int findCrossingTime( int nCurrentTrial, int nDataLength );
     bool checkDetectionTime( int nTick, int nIntention, int nCrossingTime, bool bDetectionFlag, int* pnDetectionTime );
+    void judgeByGapAcceptanceModel( int nTick );
 
 public slots:
     void DoWork();

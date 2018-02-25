@@ -10,7 +10,7 @@ public:
     ~CSinusoidalModel();
 
     virtual void Initialize(void);
-    virtual int CalculateAccelerate(int nIntention, double* parrdData, double* pdAccX, double* pdAccY);
+    virtual int CalculateAccelerate(int nIntention, double* parrdData, double* pdAccX, double* pdAccY, int nUpdateCounter);
 
 private:
 
