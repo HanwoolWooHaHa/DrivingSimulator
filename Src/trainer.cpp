@@ -261,7 +261,12 @@ int CTrainer::judgeClassificationResult(int nResult, double* pdProb)
             nSum += m_nClassificationResultBuffer[i];
         }
 
+#if defined(MAC)
+        double dProb[NUM_CLASS] = {0.0};
+#else
         double dProb[nNumClass] = {0.0};
+#endif
+
         for(int i=0; i<nNumClass; i++)
         {
             dProb[i] = pdProb[i] * m_nClassificationResultBuffer[i] / nSum;

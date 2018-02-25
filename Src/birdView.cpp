@@ -1,7 +1,12 @@
 ﻿#include "../Include/birdView.h"
 #include "../Include/database.h"
 
+#if defined(UBUNTU)
 #include <GL/glu.h>
+#endif
+#if defined(MAC)
+#include <glu.h>
+#endif
 #include <QWheelEvent>
 #include <qmath.h>
 #include <QDebug>
