@@ -9,8 +9,8 @@
 */
 
 //! Select OS
-//#define MAC
-#define UBUNTU
+#define MAC
+//#define UBUNTU
 
 #define TRAFFIC
 //#define MEASUREMENT
@@ -31,7 +31,8 @@
     #define TRAFFIC_FILE_PATH "../../Dataset/i-80/traffic/"
     #define DS_FILE_PATH "../../Dataset/mazda/DS3_20170428/DS_data_1704/"
     #define DS_TRAININGFILE_PATH "../../Dataset/mazda/DS3_20170428/Driver/"
-#elif MAC
+#endif
+#ifdef MAC
     #define TRAFFIC_FILE_PATH "/Users/woohanwool/Dataset/i-80/traffic/"
     #define DS_FILE_PATH "/Users/woohanwool/Dataset/DS3_20170428/DS_data_1704/"
     #define DS_TRAININGFILE_PATH "/Users/woohanwool/Dataset/DS3_20170428/Driver/"

@@ -68,4 +68,3 @@ HEADERS  += mainwindow.h \
     Include/gapAcceptance.h
 
 FORMS    += mainwindow.ui
-LIBS += -lGLU

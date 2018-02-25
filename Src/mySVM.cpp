@@ -232,8 +232,11 @@ void CMySvm::saveModel( void )
 
 void CMySvm::loadModel( void )
 {
+#if defined(MAC)
+    QString modelFile = "/Users/woohanwool/Program/build-DrivingSimulator-Desktop_Qt_5_6_2_clang_64bit-Debug/Model/160324_Proposed(SVM).txt";
+#else
     QString modelFile = "Model/160324_Proposed(SVM).txt";
-
+#endif
     std::string cStr = modelFile.toStdString();
     int nLen = modelFile.length();
     char* chr = new char[nLen + 1];

@@ -527,7 +527,7 @@ void CLoopManager::judgeByGapAcceptanceModel( int nTick )
         dProbIntention[i] = CDatabase::GetInstance()->GetIntentionProbability( i );
     }
 
-    double dLambda = 0.56;
+    double dLambda = 0.5;
 
     double dGapProb = CDatabase::GetInstance()->GetGapAcceptanceProbability();
 

@@ -11,6 +11,9 @@
 #include <qfile.h>
 #include <qtextstream.h>
 #include <qdebug.h>
+#if defined(MAC)
+#include <math.h>
+#endif
 
 static QString DRIVER[10] =
 {
